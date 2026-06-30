@@ -1,0 +1,10 @@
+[package]
+name = "ir-network"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+ir-core = { path = "../core" }

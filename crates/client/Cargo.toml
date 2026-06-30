@@ -1,0 +1,13 @@
+[package]
+name = "ir-client"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+ir-core = { path = "../core" }
+ir-rendering = { path = "../rendering" }
+ir-gameplay = { path = "../gameplay" }
+ir-procedural = { path = "../procedural" }
+ir-progression = { path = "../progression" }
+ir-network = { path = "../network" }

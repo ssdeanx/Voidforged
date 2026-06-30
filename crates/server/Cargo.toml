@@ -1,0 +1,12 @@
+[package]
+name = "ir-server"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+ir-core = { path = "../core" }
+ir-gameplay = { path = "../gameplay" }
+ir-procedural = { path = "../procedural" }
+ir-progression = { path = "../progression" }
+ir-network = { path = "../network" }

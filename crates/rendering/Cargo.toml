@@ -1,0 +1,8 @@
+[package]
+name = "ir-rendering"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+ir-core = { path = "../core" }

@@ -1,0 +1,10 @@
+[package]
+name = "ir-procedural"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bevy = { workspace = true }
+serde = { workspace = true }
+rand = { workspace = true }
+ir-core = { path = "../core" }
