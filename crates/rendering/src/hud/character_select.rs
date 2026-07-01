@@ -480,6 +480,7 @@ pub fn delete_character(
 
 // ── Despawn ────────────────────────────────────────────────────────────────
 
+/// Despawns the entire character select screen recursively.
 pub fn despawn_character_select(
     mut commands: Commands,
     screen: Query<Entity, With<CharSelectRoot>>,

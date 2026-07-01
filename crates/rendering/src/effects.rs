@@ -14,10 +14,15 @@ use bevy_hanabi::*;
 /// Resource holding handles to all pre-built particle effects.
 #[derive(Resource)]
 pub struct EffectsLibrary {
+    /// Impact burst effect for melee/projectile hits.
     pub impact_burst: Handle<EffectAsset>,
+    /// Green glow effect (used for XP gems, friendly auras).
     pub glow_green: Handle<EffectAsset>,
+    /// Blue glow effect (used for mana effects, magic cast).
     pub glow_blue: Handle<EffectAsset>,
+    /// Dash / dodge trail effect.
     pub dash_trail: Handle<EffectAsset>,
+    /// Pulsing telegraph ring for enemy windup attacks.
     pub telegraph_pulse: Handle<EffectAsset>,
 }
 
@@ -197,12 +202,16 @@ pub fn spawn_telegraph(commands: &mut Commands, library: &EffectsLibrary, positi
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct GlowMaterial {
     #[uniform(0)]
+    /// Base (diffuse) color when not pulsing.
     pub base_color: Vec4,
     #[uniform(1)]
+    /// Emissive glow color during the pulse peak.
     pub glow_color: Vec4,
     #[uniform(2)]
+    /// Intensity multiplier for the glow effect.
     pub glow_intensity: f32,
     #[uniform(3)]
+    /// Speed of the pulsation (cycles per second).
     pub pulse_speed: f32,
 }
 
