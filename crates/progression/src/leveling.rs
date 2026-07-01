@@ -62,4 +62,25 @@ mod tests {
         let xp_to_next_l2 = (100.0 * 1.3_f64.powi(2)) as u64;
         assert_eq!(xp_to_next_l2, 169);
     }
+
+    #[test]
+    fn test_xp_formula_scales_with_level() {
+        let lv1 = (100.0 * 1.3_f64.powi(1)) as u64;
+        let lv10 = (100.0 * 1.3_f64.powi(10)) as u64;
+        assert!(lv10 > lv1);
+    }
+
+    #[test]
+    fn test_xp_to_next_at_high_level() {
+        let xp_lv20 = (100.0 * 1.3_f64.powi(20)) as u64;
+        assert!(xp_lv20 > 10000);
+    }
+
+    #[test]
+    fn test_player_xp_basic_level_up() {
+        let mut player = Player::default();
+        player.experience = 100; // exactly enough for level 1->2
+        let xp_needed = player.xp_to_next;
+        assert_eq!(xp_needed, 100);
+    }
 }

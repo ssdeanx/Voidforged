@@ -2606,6 +2606,7 @@ dependencies = [
  "rand 0.8.6",
  "rusqlite",
  "serde",
+ "serde_json",
  "thiserror 2.0.18",
 ]
 
@@ -2676,6 +2677,8 @@ dependencies = [
  "ir-progression",
  "ir-world",
  "rand 0.8.6",
+ "ron",
+ "serde",
 ]
 
 [[package]]

@@ -1,3 +1,9 @@
+//! Bevy ECS components for players, enemies, projectiles, character classes,
+//! combat stats, spatial data, status effects, spawning markers, and more.
+//!
+//! These components are the building blocks of every entity in the game.
+//! Related types (bundles, events, resources) live in their own modules.
+
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -70,21 +76,33 @@ impl ForcedMovement {
 // Character Class
 // ============================================================================
 
-/// The five playable classes. Each has unique stats, abilities, and playstyle.
+/// The five playable character classes. Each has unique stats, abilities, and playstyle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum CharacterClass {
+    /// A battle-hardened melee fighter who uses Rage to fuel devastating attacks.
+    /// Excels at close quarters with high armour and area damage.
     Warrior,
+    /// A holy warrior who channels Holy Power into righteous melee strikes and healing light.
+    /// Durable with strong self-sustain.
     Paladin,
+    /// A shadowy operative who spends Energy on quick, precise strikes.
+    /// Highest single-target damage with stealth and poison mechanics.
     Rogue,
+    /// A wilderness expert who uses Focus for powerful ranged attacks.
+    /// Pairs deadly accuracy with traps and mobility.
     Hunter,
+    /// A master of arcane arts who wields Mana for devastating elemental magic.
+    /// Unmatched area damage with teleportation and crowd control.
     Mage,
 }
 
 impl CharacterClass {
+    /// Returns a vector containing every class variant for iteration.
     pub fn all() -> Vec<Self> {
         vec![Self::Warrior, Self::Paladin, Self::Rogue, Self::Hunter, Self::Mage]
     }
 
+    /// Returns the human-readable display name for this class.
     pub fn display_name(&self) -> &str {
         match self {
             Self::Warrior => "Warrior",
@@ -95,6 +113,7 @@ impl CharacterClass {
         }
     }
 
+    /// Returns the name of the class's primary resource (e.g. Rage, Mana).
     pub fn resource_name(&self) -> &str {
         match self {
             Self::Warrior => "Rage",
@@ -105,6 +124,7 @@ impl CharacterClass {
         }
     }
 
+    /// Returns a longer flavour description of the class for character creation.
     pub fn description(&self) -> &str {
         match self {
             Self::Warrior => "A battle-hardened melee fighter who uses Rage to fuel devastating attacks. Excels at close quarters with high armor and area damage.",
@@ -115,6 +135,7 @@ impl CharacterClass {
         }
     }
 
+    /// Returns the base maximum HP for this class at level 1.
     pub fn base_max_hp(&self) -> f32 {
         match self {
             Self::Warrior => 160.0,
@@ -125,6 +146,7 @@ impl CharacterClass {
         }
     }
 
+    /// Returns the base [`CombatStats`] for this class at level 1.
     pub fn base_stats(&self) -> CombatStats {
         match self {
             Self::Warrior => CombatStats {
@@ -181,6 +203,7 @@ impl CharacterClass {
         }
     }
 
+<<<<<<< HEAD
     pub fn is_unlocked(&self, unlocks: &[String]) -> bool {
         match self.starting_weapon().kind {
             WeaponKind::Sword => true, // Sword and Aura are always available
@@ -192,6 +215,9 @@ impl CharacterClass {
         }
     }
 
+=======
+    /// Returns the starting [`Weapon`] for this class at level 1.
+>>>>>>> origin/master
     pub fn starting_weapon(&self) -> Weapon {
         match self {
             Self::Warrior => Weapon::new(WeaponKind::Sword, 14.0, 1.0, 3.5),
@@ -202,6 +228,7 @@ impl CharacterClass {
         }
     }
 
+<<<<<<< HEAD
     /// Returns resource costs for each ability slot: (primary, secondary, cast, dash).
     /// Most classes have 0-cost for some slots (e.g. Warrior has no resource cost on any slot,
     /// generating Rage by dealing/taking damage instead).
@@ -216,6 +243,9 @@ impl CharacterClass {
     }
 
     /// Which ability fires on primary attack (LMB hold)
+=======
+    /// Returns the [`ClassAbilityId`] for this class's primary attack (LMB hold).
+>>>>>>> origin/master
     pub fn primary_ability(&self) -> ClassAbilityId {
         match self {
             Self::Warrior => ClassAbilityId::MeleeCleave,
@@ -225,7 +255,8 @@ impl CharacterClass {
             Self::Mage => ClassAbilityId::Fireball,
         }
     }
-    /// Which ability fires on secondary attack (RMB)
+
+    /// Returns the [`ClassAbilityId`] for this class's secondary attack (RMB).
     pub fn secondary_ability(&self) -> ClassAbilityId {
         match self {
             Self::Warrior => ClassAbilityId::ShieldBlock,
@@ -235,7 +266,8 @@ impl CharacterClass {
             Self::Mage => ClassAbilityId::Frostbolt,
         }
     }
-    /// Which ability fires on cast (Q)
+
+    /// Returns the [`ClassAbilityId`] for this class's cast ability (Q).
     pub fn cast_ability(&self) -> ClassAbilityId {
         match self {
             Self::Warrior => ClassAbilityId::Charge,
@@ -245,7 +277,8 @@ impl CharacterClass {
             Self::Mage => ClassAbilityId::ArcaneBlast,
         }
     }
-    /// Which ability triggers on dash
+
+    /// Returns the [`ClassAbilityId`] for this class's dash ability.
     pub fn dash_ability(&self) -> ClassAbilityId {
         match self {
             Self::Warrior => ClassAbilityId::CombatRoll,
@@ -275,36 +308,62 @@ impl std::str::FromStr for CharacterClass {
     }
 }
 
+<<<<<<< HEAD
 /// Identifiers for every class ability.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+=======
+/// Identifiers for every class ability in the game.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+>>>>>>> origin/master
 pub enum ClassAbilityId {
     // Warrior
+    /// Wide cleave AoE attack.
     MeleeCleave,
+    /// Shield block that reduces incoming damage briefly.
     ShieldBlock,
+    /// Rush toward target location, dealing impact damage.
     Charge,
+    /// Quick roll that grants brief invincibility frames.
     CombatRoll,
     // Paladin
+    /// Righteous melee strike with bonus holy damage.
     RighteousStrike,
+    /// Heal self or nearby ally.
     HolyLight,
+    /// Consecrate ground, dealing damage over time in an area.
     Consecration,
+    /// Mount a spectral steed for brief speed boost.
     DivineSteed,
     // Rogue
+    /// High-damage attack from behind the target.
     Backstab,
+    /// Coat weapon with poison for damage-over-time.
     PoisonBlade,
+    /// Become invisible briefly, next attack deals bonus damage.
     Vanish,
+    /// Teleport behind the target.
     Shadowstep,
     // Hunter
+    /// Precise ranged shot with bonus crit chance.
     AimedShot,
+    /// Fire multiple arrows in a cone.
     MultiShot,
+    /// Place a snare trap that slows enemies.
     Trap,
+    /// Leap backward, creating distance from enemies.
     Disengage,
     // Mage
+    /// Launch a fireball that explodes on impact.
     Fireball,
+    /// Freeze a target, slowing and dealing frost damage.
     Frostbolt,
+    /// Powerful arcane burst in a cone.
     ArcaneBlast,
+    /// Short-range teleport in the movement direction.
     Blink,
 }
 
+<<<<<<< HEAD
 impl ClassAbilityId {
     /// Human-readable ability name for the HUD action bar.
     pub fn display_name(&self) -> &'static str {
@@ -334,10 +393,17 @@ impl ClassAbilityId {
 }
 
 /// Component attached to the player — holds their class identity.
+=======
+/// Component attached to the player entity — holds their class identity.
+///
+/// Read by the ability system to determine which skills the player can use.
+>>>>>>> origin/master
 #[derive(Component, Debug, Clone)]
 pub struct PlayerClass(pub CharacterClass);
 
-/// Player's chosen name (from character creation).
+/// Player's chosen name from character creation.
+///
+/// Displayed in UI panels and above the player character.
 #[derive(Component, Debug, Clone)]
 pub struct PlayerName(pub String);
 
@@ -346,13 +412,15 @@ pub struct PlayerName(pub String);
 // ============================================================================
 
 /// Marks the player entity. Only one should exist at any time.
+///
+/// Carries the player's level and XP accumulated during the current run.
 #[derive(Component, Debug, Clone)]
 pub struct Player {
-    /// Current character level (resets each run)
+    /// Current character level (resets each run, persists across runs in profile).
     pub level: u32,
-    /// Total XP accumulated this run
+    /// Total XP accumulated this run toward the next level.
     pub experience: u64,
-    /// XP needed for next level
+    /// XP required to reach the next level.
     pub xp_to_next: u64,
 }
 
@@ -367,85 +435,130 @@ impl Default for Player {
 }
 
 /// Marks an enemy entity.
+///
+/// Carries the enemy's variant type, difficulty tier, and XP reward on death.
 #[derive(Component, Debug, Clone)]
 pub struct Enemy {
-    /// Enemy type identifier for spawning and loot tables
+    /// Enemy type identifier (used for spawning, meshes, loot tables).
     pub variant: EnemyVariant,
-    /// Difficulty tier (scales with wave/zone depth)
+    /// Difficulty tier — scales with wave/zone depth, multiplies stats.
     pub tier: u32,
-    /// XP reward on death
+    /// XP awarded to the player when this enemy is killed.
     pub xp_reward: u64,
 }
 
+/// Variant types for enemies — determines stats, behaviour, and loot.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EnemyVariant {
+    /// Basic melee enemy with moderate HP and damage.
     Grunt,
+    /// Ranged attacker that fires projectiles from a distance.
     Ranged,
+    /// Fast melee charger that rushes the player.
     Charger,
+    /// Higher-tier enemy with increased stats and rewards.
     Elite,
+    /// Boss enemy with greatly multiplied stats and special behaviours.
     Boss,
 }
 
-/// Marks a projectile entity.
+/// Marks a projectile entity (player or enemy projectiles).
+///
+/// Contains damage, speed, lifetime, piercing status, and owner information.
 #[derive(Component, Debug, Clone)]
 pub struct Projectile {
+    /// Damage dealt on impact.
     pub damage: f32,
+    /// Movement speed in units per second.
     pub speed: f32,
-    pub lifetime: f32,       // seconds remaining
-    pub max_lifetime: f32,   // seconds before despawn
+    /// Seconds remaining before the projectile despawns.
+    pub lifetime: f32,
+    /// Maximum lifetime (set on creation, used for despawn timing).
+    pub max_lifetime: f32,
+    /// Whether the projectile passes through enemies (hitting multiple targets).
     pub piercing: bool,
+    /// Whether this projectile was fired by the player or an enemy.
     pub owner: ProjectileOwner,
 }
 
+/// Distinguishes between player-owned and enemy-owned projectiles.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ProjectileOwner {
+    /// Projectile was fired by the player or their abilities.
     Player,
+    /// Projectile was fired by an enemy.
     Enemy,
 }
 
-/// Marks an experience gem dropped by enemies.
+/// Marks an experience gem dropped by enemies on death.
+///
+/// Flies toward the player when within magnet range.
 #[derive(Component, Debug, Clone)]
 pub struct ExperienceGem {
+    /// Amount of XP granted when collected.
     pub value: u64,
+    /// Speed at which the gem accelerates toward the player when in magnet range.
     pub magnet_speed: f32,
 }
 
-/// Marks a collectible item on the ground.
+/// Marks a collectible item on the ground (health, gold, temporary buffs).
 #[derive(Component, Debug, Clone)]
 pub struct Pickup {
+    /// What kind of pickup this is.
     pub kind: PickupKind,
 }
 
+/// Categorises the type of ground pickup.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PickupKind {
+    /// Restores HP on collection.
     Health,
+    /// Adds gold to the player's inventory.
     Gold,
+    /// Applies a temporary stat boost on collection.
     TemporaryBoost,
 }
 
 /// Weapon component — attached to the player or enemies that use weapons.
+///
+/// Defines the base damage, attack speed, range, and evolution stage.
 #[derive(Component, Debug, Clone)]
 pub struct Weapon {
+    /// Weapon type (sword, bow, staff, etc.).
     pub kind: WeaponKind,
+    /// Base damage dealt per hit.
     pub damage: f32,
-    pub attack_speed: f32,  // attacks per second
+    /// Attacks per second (higher = faster).
+    pub attack_speed: f32,
+    /// Maximum attack range in world units.
     pub range: f32,
+    /// Current cooldown timer — attack is ready when <= 0.
     pub cooldown_timer: f32,
+    /// Evolution stage (some weapons evolve after reaching certain milestones).
     pub evolution_stage: u32,
 }
 
+/// Types of weapons available in the game.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum WeaponKind {
+    /// Fast, low-damage melee weapon.
     Dagger,
+    /// Balanced melee weapon.
     Sword,
+    /// Ranged physical weapon.
     Bow,
+    /// Ranged magical weapon.
     Staff,
+    /// Passive damage aura (auto-hits nearby enemies).
     Aura,
+    /// Medium-range melee weapon with sweep attacks.
     Whip,
+    /// Homing magic projectile weapon.
     MagicMissile,
 }
 
 impl Weapon {
+    /// Creates a new weapon with the given properties and cooldown ready.
     pub fn new(kind: WeaponKind, damage: f32, attack_speed: f32, range: f32) -> Self {
         Self {
             kind,
@@ -458,21 +571,34 @@ impl Weapon {
     }
 }
 
-/// Passive ability / buff attached to an entity.
+/// Passive ability or buff attached to an entity.
+///
+/// Modifies stats or behaviour while attached. Can have a limited duration
+/// (`None` = permanent until removed).
 #[derive(Component, Debug, Clone)]
 pub struct Ability {
+    /// Which ability/buff this is.
     pub kind: AbilityKind,
+    /// Power tier (higher = stronger effect).
     pub tier: u32,
-    pub duration: Option<f32>, // None = permanent while attached
+    /// Remaining duration in seconds. `None` = permanent while attached.
+    pub duration: Option<f32>,
 }
 
+/// Available passive ability and buff types.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AbilityKind {
+    /// Increases movement speed.
     SpeedBoost,
+    /// Deals damage to nearby enemies each frame.
     DamageAura,
+    /// Absorbs a portion of incoming damage.
     Shield,
+    /// Reflects a percentage of incoming damage back to the attacker.
     Thorns,
+    /// Fires additional projectiles with each attack.
     MultiShot,
+    /// Projectiles pass through extra targets.
     PierceShot,
 }
 
@@ -480,15 +606,23 @@ pub enum AbilityKind {
 // Stat Components
 // ============================================================================
 
-/// Health pool.
+/// Health pool with damage, healing, and invulnerability window support.
+///
+/// The `invulnerable_until` field is a timestamp (seconds since session start)
+/// during which the entity cannot take damage (used for dodge i-frames,
+/// spawn protection, etc.).
 #[derive(Component, Debug, Clone)]
 pub struct Health {
+    /// Current health value. Entity dies when this reaches 0.
     pub current: f32,
+    /// Maximum health cap — healing cannot exceed this value.
     pub max: f32,
+    /// Game time (seconds) before which the entity is invulnerable.
     pub invulnerable_until: f32,
 }
 
 impl Health {
+    /// Creates a new health pool at full HP with no invulnerability.
     pub fn new(max: f32) -> Self {
         Self {
             current: max,
@@ -497,14 +631,20 @@ impl Health {
         }
     }
 
+    /// Returns the fraction of remaining health (0.0–1.0).
     pub fn fraction(&self) -> f32 {
         self.current / self.max
     }
 
+    /// Returns true if the entity is still alive (current > 0).
     pub fn is_alive(&self) -> bool {
         self.current > 0.0
     }
 
+    /// Attempts to apply damage, respecting invulnerability window.
+    ///
+    /// Returns `true` if damage was applied, `false` if the entity is
+    /// currently invulnerable (`time < self.invulnerable_until`).
     pub fn take_damage(&mut self, amount: f32, time: f32) -> bool {
         if time < self.invulnerable_until {
             return false;
@@ -513,27 +653,45 @@ impl Health {
         true
     }
 
+    /// Heals the entity by the given amount, clamped to max HP.
     pub fn heal(&mut self, amount: f32) {
         self.current = (self.current + amount).min(self.max);
     }
 }
 
-/// Core combat stats.
+/// Core combat stats that determine the entity's combat effectiveness.
+///
+/// These values are modified by equipment, abilities, and meta-progression
+/// upgrades. Default values represent an unmodified level-1 character.
 #[derive(Component, Debug, Clone)]
 pub struct CombatStats {
+    /// Flat bonus to all outgoing damage.
     pub damage_bonus: f32,
+    /// Percentage bonus to attack speed (0.0–1.0+).
     pub attack_speed_bonus: f32,
+    /// Base movement speed in units per second.
     pub move_speed: f32,
+    /// Flat damage reduction applied to incoming physical damage.
     pub armor: f32,
+    /// Chance to completely dodge an incoming attack (0.0–1.0).
     pub dodge_chance: f32,
+    /// Chance for attacks to critically strike (0.0–1.0).
     pub crit_chance: f32,
+    /// Critical hit damage multiplier (e.g. 2.0 = double damage).
     pub crit_multiplier: f32,
+    /// Radius in world units for auto-pickup of items and XP gems.
     pub pickup_radius: f32,
+    /// Bonus maximum health added on top of base HP.
     pub max_health_bonus: f32,
+    /// Movement speed modifier (percentage-based).
     pub move_speed_bonus: f32,
+    /// Fractional reduction of dash cooldown timer.
     pub dash_cooldown_reduction: f32,
+    /// Percentage of outgoing damage returned as healing (0.0–1.0).
     pub lifesteal: f32,
+    /// Flat armour penetration (ignores this much target armour).
     pub armor_penetration: f32,
+    /// Total damage taken multiplier (1.0 = normal, <1.0 = reduced).
     pub damage_taken_multiplier: f32,
 }
 
@@ -562,7 +720,9 @@ impl Default for CombatStats {
 // Spatial Components
 // ============================================================================
 
-/// 3D position for the isometric world.
+/// 3D position for entities in the isometric world.
+///
+/// Used as the primary spatial component — most entities have one.
 #[derive(Component, Debug, Clone)]
 pub struct Position(pub Vec3);
 
@@ -572,7 +732,7 @@ impl Default for Position {
     }
 }
 
-/// Velocity for movement.
+/// 3D velocity for entity movement. Applied each frame by movement systems.
 #[derive(Component, Debug, Clone)]
 pub struct Velocity(pub Vec3);
 
@@ -582,12 +742,16 @@ impl Default for Velocity {
     }
 }
 
-/// Rendering information — which model/mesh to use and visual variants.
+/// Rendering information — which model/mesh to use and visual overrides.
 #[derive(Component, Debug, Clone)]
 pub struct RenderInfo {
+    /// Mesh handle for the entity's 3D model (if custom).
     pub mesh_handle: Option<Handle<Mesh>>,
+    /// Material handle for the entity's surface appearance.
     pub material_handle: Option<Handle<StandardMaterial>>,
+    /// Uniform scale multiplier for the entity's transform.
     pub scale: f32,
+    /// Colour tint applied on top of the material.
     pub tint: Color,
 }
 
@@ -606,11 +770,14 @@ impl Default for RenderInfo {
 // Team Component
 // ============================================================================
 
-/// Which side an entity belongs to.
+/// Which side an entity belongs to for friendly-fire and targeting.
 #[derive(Component, Debug, Clone, PartialEq, Eq)]
 pub enum Team {
+    /// Controlled by the player (player character, player projectiles, pets).
     Player,
+    /// Hostile to the player (enemies, enemy projectiles, traps).
     Enemy,
+    /// Neutral — not attacked by default (NPCs, environmental objects).
     Neutral,
 }
 
@@ -618,24 +785,35 @@ pub enum Team {
 // Spawning Markers
 // ============================================================================
 
-/// Marker for entities that should be despawned when leaving the current room/zone.
+/// Marker for entities that should be despawned when leaving the current room or zone.
+///
+/// Applied to all gameplay entities spawned within a room (enemies, projectiles,
+/// pickups). When the room is exited, all entities with this marker are cleaned up.
 #[derive(Component, Debug, Clone)]
 pub struct RoomEntity;
 
-/// Marker for the current room/zone entity (used by procedural generation).
+/// Marker for the current room or zone entity (used by procedural generation).
 #[derive(Component, Debug, Clone)]
 pub struct Room;
 
-/// Auto-despawn after a duration (for VFX, temp indicators).
+/// Auto-despawn timer — entity is despawned after the duration elapses.
+///
+/// Used for temporary VFX, telegraph indicators, and one-frame markers.
 #[derive(Component, Debug, Clone)]
 pub struct Lifetime {
+    /// Remaining seconds before despawn.
     pub remaining: f32,
 }
 
-/// Per-enemy cooldown for attacks.
+/// Per-enemy cooldown tracking for attacks.
+///
+/// `timer` counts down from the attack interval; `windup` tracks the
+/// telegraph phase before the attack actually fires.
 #[derive(Component, Debug, Clone)]
 pub struct AttackCooldown {
+    /// Cooldown timer (seconds) — attack ready when <= 0.
     pub timer: f32,
+    /// Windup timer (seconds) — tracks telegraph phase before attack fires.
     pub windup: f32,
 }
 
@@ -650,10 +828,15 @@ impl Default for AttackCooldown {
 // ============================================================================
 
 /// Stamina resource for sprinting and dodging.
+///
+/// Regenerates over time up to `max`. Spending stamina reduces `current`.
 #[derive(Component, Debug, Clone)]
 pub struct Stamina {
+    /// Current stamina value.
     pub current: f32,
+    /// Maximum stamina cap.
     pub max: f32,
+    /// Stamina regenerated per second.
     pub regen_rate: f32,
     /// Prevents regen for this many seconds after spending stamina (wow-style lockout).
     pub stamina_lockout_timer: f32,
@@ -666,7 +849,9 @@ impl Default for Stamina {
 }
 
 impl Stamina {
+    /// Returns `true` if the entity has at least `amount` stamina.
     pub fn has(&self, amount: f32) -> bool { self.current >= amount }
+<<<<<<< HEAD
     pub fn spend(&mut self, amount: f32) {
         self.current = (self.current - amount).max(0.0);
         self.stamina_lockout_timer = 1.0;
@@ -674,15 +859,24 @@ impl Stamina {
     pub fn spend_silent(&mut self, amount: f32) {
         self.current = (self.current - amount).max(0.0);
     }
+=======
+    /// Reduces stamina by `amount`, clamped at zero.
+    pub fn spend(&mut self, amount: f32) { self.current = (self.current - amount).max(0.0); }
+    /// Returns the fraction of remaining stamina (0.0–1.0).
+>>>>>>> origin/master
     pub fn fraction(&self) -> f32 { self.current / self.max }
 }
 
-/// Dash cooldown for player dodge roll.
+/// Dash cooldown component for the player's dodge roll.
 #[derive(Component, Debug, Clone)]
 pub struct DashCooldown {
+    /// Cooldown timer (seconds) — dash is ready when <= 0.
     pub timer: f32,
+    /// Whether the dash is currently active (entity is mid-roll).
     pub active: bool,
+    /// Duration of the dash roll animation / i-frames in seconds.
     pub duration: f32,
+    /// Whether the dash-triggered attack has been fired this dash.
     pub fired_dash_attack: bool,
 }
 
@@ -701,15 +895,20 @@ impl Default for DashCooldown {
 // Knockback System
 // ============================================================================
 
-/// Separate velocity for knockback, with natural damping/decay.
-/// Applied on top of normal movement so knockback doesn't override player input.
+/// Separate velocity component for knockback, with natural damping.
+///
+/// Applied additively on top of normal movement velocity so knockback
+/// doesn't override or cancel player input.
 #[derive(Component, Debug, Clone)]
 pub struct Knockback {
+    /// Current knockback velocity vector.
     pub velocity: Vec3,
+    /// Deceleration factor (0.0 = no damping, higher = faster stop).
     pub damping: f32,
 }
 
 impl Knockback {
+    /// Creates a new knockback with the given initial velocity and damping.
     pub fn new(velocity: Vec3, damping: f32) -> Self {
         Self { velocity, damping }
     }
@@ -719,52 +918,67 @@ impl Knockback {
 // Status Effects
 // ============================================================================
 
-/// Frozen — reduces move speed by 60% for the duration.
-/// Applied by Frostbolt (Mage secondary).
+/// Frozen status — reduces movement speed by 60% for the duration.
+///
+/// Applied by Frostbolt (Mage secondary ability). Prevents dashing while active.
 #[derive(Component, Debug, Clone)]
 pub struct Frozen {
+    /// Remaining duration in seconds.
     pub remaining: f32,
 }
 
 impl Frozen {
+    /// Creates a new Frozen effect lasting `duration` seconds.
     pub fn new(duration: f32) -> Self {
         Self { remaining: duration }
     }
 }
 
-/// Stun — prevents movement and actions for the duration.
-/// Applied by heavy hits (charger, boss, critical hits).
+/// Stun status — prevents movement and actions for the duration.
+///
+/// Applied by heavy hits (charger, boss, critical hits) and certain abilities.
 #[derive(Component, Debug, Clone)]
 pub struct Stun {
+    /// Remaining duration in seconds.
     pub remaining: f32,
 }
 
 impl Stun {
+    /// Creates a new Stun effect lasting `duration` seconds.
     pub fn new(duration: f32) -> Self {
         Self { remaining: duration }
     }
 }
 
-/// HitStun — brief movement interrupt on damage taken.
-/// Freezes entity's movement velocity briefly (stagger).
+/// HitStun — brief movement interrupt on damage taken (stagger).
+///
+/// Freezes the entity's movement velocity for a short duration
+/// to provide hit-feedback. Does not prevent actions.
 #[derive(Component, Debug, Clone)]
 pub struct HitStun {
+    /// Remaining duration in seconds.
     pub remaining: f32,
 }
 
 impl HitStun {
+    /// Creates a new HitStun effect lasting `duration` seconds.
     pub fn new(duration: f32) -> Self {
         Self { remaining: duration }
     }
 }
 
-/// HitStop — brief pause on hit for game feel (local to the hit entity).
+/// HitStop — brief local time freeze on the entity for game feel.
+///
+/// Pauses the entity's update for a few frames on hit impact,
+/// creating a sense of weight and impact.
 #[derive(Component, Debug, Clone)]
 pub struct HitStop {
+    /// Remaining duration in seconds.
     pub remaining: f32,
 }
 
 impl HitStop {
+    /// Creates a new HitStop effect lasting `duration` seconds.
     pub fn new(duration: f32) -> Self {
         Self { remaining: duration }
     }
@@ -775,19 +989,27 @@ impl HitStop {
 // ============================================================================
 
 /// Visual telegraph indicator spawned during enemy windup.
+///
+/// Displays a warning zone on the ground before a telegraphed attack fires.
+/// Despawns after `remaining` seconds.
 #[derive(Component, Debug, Clone)]
 pub struct TelegraphIndicator {
+    /// Remaining seconds before the telegraph despawns.
     pub remaining: f32,
+    /// Entity that this telegraph belongs to (for chaining to the attack).
     pub target_entity: Entity,
 }
 
 impl TelegraphIndicator {
+    /// Creates a new telegraph indicator lasting `duration` seconds.
     pub fn new(duration: f32, target: Entity) -> Self {
         Self { remaining: duration, target_entity: target }
     }
 }
 
 /// Marker component for magical projectiles (Mage fireballs, frostbolts).
+///
+/// Used for visual distinction and collision filtering.
 #[derive(Component, Debug, Clone)]
 pub struct MagicProjectile;
 
@@ -795,7 +1017,7 @@ pub struct MagicProjectile;
 #[derive(Component, Debug, Clone)]
 pub struct EnemyProjectileMarker;
 
-/// Marker for dash trail particle entity.
+/// Marker for dash trail particle entities spawned during the dodge roll.
 #[derive(Component, Debug, Clone)]
 pub struct DashTrail;
 
@@ -819,12 +1041,17 @@ impl HitFlash {
 pub struct TrailSegment;
 
 /// Respawn timer component for dead players awaiting respawn.
+///
+/// Attached after death in open-world mode. When `remaining` reaches 0,
+/// the player is respawned at the nearest graveyard.
 #[derive(Component, Debug, Clone)]
 pub struct RespawnTimer {
+    /// Seconds remaining before respawn.
     pub remaining: f32,
 }
 
 impl RespawnTimer {
+    /// Creates a new respawn timer with the given wait duration.
     pub fn new(duration: f32) -> Self {
         Self { remaining: duration }
     }

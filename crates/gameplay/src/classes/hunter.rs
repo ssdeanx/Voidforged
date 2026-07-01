@@ -61,10 +61,13 @@ pub fn secondary_multi_shot(
 /// Places a snare at the hunter's feet that slows enemies.
 #[derive(Component)]
 pub struct SnareTrap {
+    /// Remaining lifetime in seconds.
     pub lifetime: f32,
-    pub slow_amount: f32, // 0.0-1.0 movement speed reduction
+    /// Movement speed reduction (0.0–1.0).
+    pub slow_amount: f32,
 }
 
+/// Places a snare trap at the hunter's position that slows enemies.
 pub fn cast_trap(
     commands: &mut Commands,
     transform: &Transform,

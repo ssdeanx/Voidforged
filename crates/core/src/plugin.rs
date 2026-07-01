@@ -1,10 +1,12 @@
+//! Core plugin that registers all resources, events, and startup systems.
+
 use crate::components::*;
 use crate::db::{auto_save, init_save_db, save_on_quit};
 use crate::events::*;
 use crate::resources::*;
 use bevy::prelude::*;
 
-/// Small timer to ensure loading screen shows for at least one frame.
+/// Small timer to ensure the loading screen shows for at least one frame.
 #[derive(Resource)]
 pub struct LoadingTimer(pub f32);
 
@@ -14,6 +16,21 @@ impl Default for LoadingTimer {
     }
 }
 
+/// The core plugin that wires up all shared game infrastructure.
+///
+/// Registers:
+/// - State machines: [`AppState`], [`RunState`]
+/// - Resources: [`PlayerInput`], [`PlayerProfiles`], [`CharacterCreationState`],
+///   [`ItemDatabase`], [`MetaProgression`], [`RunProgression`], [`WaveState`],
+///   [`LoadingTimer`], [`PlayTimer`], [`DungeonState`], [`ScreenShake`],
+///   [`DeathPenalty`], [`Graveyard`]
+/// - Events: All combat, progression, wave, equipment, and death events
+/// - Startup systems: [`init_item_database`], [`init_save_db`]
+/// - Core gameplay systems: loading screen, pause toggle, player death handling,
+///   play timer, wave announcer
+/// - Save systems: periodic auto-save and quit-save
+///
+/// This plugin must be added first by the app builder before any gameplay plugins.
 pub struct CorePlugin;
 
 impl Plugin for CorePlugin {

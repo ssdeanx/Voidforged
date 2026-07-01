@@ -13,9 +13,12 @@ pub struct WorldTile;
 #[derive(Component)]
 pub struct EntranceMarker;
 
-/// Player's current zone (None = between zones / in dungeon).
+/// Player's current zone (`None` = between zones / in dungeon).
 #[derive(Resource, Default)]
-pub struct CurrentZone(pub Option<ZoneId>);
+pub struct CurrentZone(
+    /// The zone the player is currently inside, or `None` if outside all defined zones.
+    pub Option<ZoneId>,
+);
 
 /// Tracks which zones have had all enemies cleared.
 #[derive(Resource, Default)]

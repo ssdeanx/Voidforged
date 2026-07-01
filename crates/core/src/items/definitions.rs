@@ -3,23 +3,42 @@
 
 use crate::items::*;
 
-/// Template definition for an item type. Immutable, stored in ItemDatabase.
+/// Template definition for an item type. Immutable, stored in [`ItemDatabase`](crate::ItemDatabase).
+///
+/// Each `ItemDef` is a static blueprint — it contains the item's base stats,
+/// display info, slot restrictions, and other metadata. To create a runtime
+/// copy with mutable state (durability, stack count), instantiate an
+/// [`ItemInstance`] using the `def_id`.
 #[derive(Debug, Clone)]
 pub struct ItemDef {
+    /// Unique string identifier (e.g. `"iron_sword"`, `"health_potion"`).
     pub id: &'static str,
+    /// Display name shown in UI tooltips and panels.
     pub name: &'static str,
+    /// Flavour text describing the item's appearance or lore.
     pub description: &'static str,
+    /// High-level category (Weapon, Armor, Consumable, etc.).
     pub category: ItemCategory,
+    /// Equipment slot, if this item can be equipped.
     pub slot: Option<EquipSlot>,
+    /// Quality tier that determines stat multipliers and UI colour.
     pub rarity: ItemRarity,
+    /// Base stat modifications applied when this item is equipped.
     pub base_stats: Vec<StatMod>,
+    /// Maximum stack count for consumables / materials (1 for equipment).
     pub max_stack: u16,
+    /// Identifier for the UI icon sprite.
     pub icon_id: &'static str,
+    /// Minimum character level required to equip or use this item.
     pub required_level: u32,
+    /// Base vendor price in gold.
     pub vendor_price: u64,
 }
 
-/// Returns all starter item definitions. Called once at startup to populate ItemDatabase.
+/// Returns all starter item definitions.
+///
+/// Called once at startup by [`init_item_database`](crate::resources::init_item_database)
+/// to populate the central [`ItemDatabase`](crate::resources::ItemDatabase).
 pub fn starter_item_defs() -> Vec<ItemDef> {
     vec![
         // ── Weapons ─────────────────────────────────────────────────

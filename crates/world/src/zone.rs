@@ -6,16 +6,31 @@ use serde::{Deserialize, Serialize};
 /// A named zone in the open world.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum ZoneId {
+    /// The starting zone — green grassy plains with scattered trees.
     Grasslands,
+    /// An arid sandy desert region to the south of the Grasslands.
     Desert,
+    /// A dense woodland to the east with darker, thicker ground cover.
     Forest,
+    /// A frozen tundra region (defined but not placed on the current world grid).
     Tundra,
+    /// A murky swamp region (defined but not placed on the current world grid).
     Swamp,
+<<<<<<< HEAD
     Void, // between-zone transition
 }
 
 impl ZoneId {
     /// Short display name (enum variant).
+=======
+    /// Between-zone transition / void state — returned when the player is
+    /// outside all defined zones.
+    Void,
+}
+
+impl ZoneId {
+    /// Returns the human-readable display name for this zone.
+>>>>>>> origin/master
     pub fn display_name(&self) -> &str {
         match self {
             ZoneId::Grasslands => "Grasslands",
@@ -264,26 +279,41 @@ impl DecorDef {
 
 /// Position in the world grid.
 #[derive(Debug, Clone, Copy, Component, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct WorldPos(pub i32, pub i32);
+pub struct WorldPos(
+    /// X coordinate in the world tile grid.
+    pub i32,
+    /// Z coordinate in the world tile grid.
+    pub i32,
+);
 
 /// A dungeon entrance on the world map.
 #[derive(Debug, Clone, Component)]
 pub struct DungeonEntrance {
+    /// Display name shown when the player approaches the entrance.
     pub name: String,
+    /// Difficulty tier of the dungeon (higher = stronger enemies and better rewards).
     pub dungeon_tier: u32,
-    pub depth: u32, // number of rooms
+    /// Number of rooms / floors to clear before reaching the exit.
+    pub depth: u32,
 }
 
 /// The full definition of a zone on the map.
 #[derive(Debug, Clone)]
 pub struct ZoneDef {
+    /// Unique identifier for this zone.
     pub id: ZoneId,
+    /// Display label shown in the HUD when the player is in this zone.
     pub label: &'static str,
+    /// Width of the zone in tiles.
     pub tile_w: usize,
+    /// Height of the zone in tiles.
     pub tile_h: usize,
-    /// Grid offset in world coords (each tile is 2 units)
+    /// Grid offset in world coords (each tile is 2 units).
     pub offset_x: i32,
+    /// Z-axis offset corresponding to `offset_x`, in world coords.
     pub offset_z: i32,
+    /// Dungeon entrance locations and definitions within this zone.
+    /// Each entry is `(tile_x, tile_z, dungeon_definition)`.
     pub dungeon_entrances: Vec<(i32, i32, DungeonEntrance)>,
 }
 

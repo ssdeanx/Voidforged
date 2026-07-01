@@ -8,12 +8,21 @@ use crate::components::CharacterClass;
 use crate::resources::PlayerProfile;
 
 /// Wrapper around the SQLite connection. Uses Mutex for Send+Sync.
+///
+/// Manages a local SQLite database at `$XDG_DATA_HOME/voidforged/saves.db`
+/// with automatic schema migration on open. All public methods are thread-safe.
 #[derive(Resource)]
 pub struct SaveDatabase {
+    /// Interior-mutable SQLite connection, locked per-operation.
     conn: std::sync::Mutex<Connection>,
 }
 
 impl SaveDatabase {
+    /// Opens (or creates) the save database and runs pending migrations.
+    ///
+    /// Creates parent directories if they don't exist, enables WAL mode,
+    /// and runs schema migrations. Returns an error if the database cannot
+    /// be opened or created.
     pub fn open() -> Result<Self, Box<dyn std::error::Error>> {
         let path = Self::db_path();
         if let Some(parent) = path.parent() {
@@ -49,6 +58,10 @@ impl SaveDatabase {
         Ok(())
     }
 
+    /// Saves (inserts or upserts) a player profile into the database.
+    ///
+    /// Serializes the profile with Bincode and writes it to the `profiles` table.
+    /// If a profile with the same ID already exists, it is updated.
     pub fn save_profile(&self, profile: &PlayerProfile) -> Result<(), Box<dyn std::error::Error>> {
         let data = bincode::serialize(profile)?;
         let now = iso_now();
@@ -66,6 +79,9 @@ impl SaveDatabase {
         Ok(())
     }
 
+    /// Loads a single player profile by numeric ID.
+    ///
+    /// Returns `None` if no profile with that ID exists.
     pub fn load_profile(&self, id: u32) -> Result<Option<PlayerProfile>, Box<dyn std::error::Error>> {
         let id_str = format!("char_{}", id);
         let conn = self.conn.lock().unwrap();
@@ -81,6 +97,7 @@ impl SaveDatabase {
         }
     }
 
+    /// Lists all saved profiles as lightweight summaries (no BLOB data loaded).
     pub fn list_profiles(&self) -> Result<Vec<ProfileSummary>, Box<dyn std::error::Error>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
@@ -103,6 +120,7 @@ impl SaveDatabase {
         Ok(summaries)
     }
 
+    /// Deletes a player profile by numeric ID.
     pub fn delete_profile(&self, id: u32) -> Result<(), Box<dyn std::error::Error>> {
         let id_str = format!("char_{}", id);
         let conn = self.conn.lock().unwrap();
@@ -111,13 +129,23 @@ impl SaveDatabase {
     }
 }
 
+/// Lightweight profile metadata returned by [`SaveDatabase::list_profiles`].
+///
+/// Contains display info without loading the full BLOB data, suitable for
+/// the character selection screen.
 #[derive(Debug, Clone)]
 pub struct ProfileSummary {
+    /// Numeric profile ID.
     pub id: u32,
+    /// Character name.
     pub name: String,
+    /// Character class.
     pub class: CharacterClass,
+    /// Character level.
     pub level: u32,
+    /// Total play time in seconds.
     pub play_time_secs: i64,
+    /// ISO-8601 timestamp of last save.
     pub last_played: String,
 }
 
@@ -161,7 +189,11 @@ fn seconds_to_datetime(secs: u64) -> (u64, u64, u64, u64, u64, u64) {
 
 fn is_leap(y: i64) -> bool { (y % 4 == 0 && y % 100 != 0) || y % 400 == 0 }
 
-/// Startup — initializes the save database.
+/// Startup system — initializes the save database and inserts it as a resource.
+///
+/// Registered in [`CorePlugin`](crate::plugin::CorePlugin). If the database
+/// cannot be opened, an error is logged and the save feature is disabled
+/// for the session.
 pub fn init_save_db(mut commands: Commands) {
     match SaveDatabase::open() {
         Ok(db) => { info!("Save DB opened"); commands.insert_resource(db); }
@@ -169,7 +201,9 @@ pub fn init_save_db(mut commands: Commands) {
     }
 }
 
-/// Auto-save every 30s.
+/// Periodic auto-save system that saves the player profile every 30 seconds.
+///
+/// Only runs during [`AppState::Playing`](crate::resources::AppState).
 pub fn auto_save(
     time: Res<Time>,
     mut timer: Local<f32>,
@@ -186,7 +220,9 @@ pub fn auto_save(
     }
 }
 
-/// Save on quit.
+/// Saves the player profile when quitting the game.
+///
+/// Registered in the `Last` schedule set for cleanup on quit.
 pub fn save_on_quit(
     db: Option<Res<SaveDatabase>>,
     profile_query: Query<&PlayerProfile, With<crate::components::Player>>,

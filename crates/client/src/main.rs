@@ -5,6 +5,19 @@
 
 use bevy::prelude::*;
 
+/// Entry point for the Voidforged game client.
+///
+/// Builds and runs the Bevy application with all game plugins:
+///
+/// - **Core** — shared types, resources, and events.
+/// - **Rendering** — isometric 3D camera, lighting, asset loading, HUD.
+/// - **World** — open world map, zones, dungeon entrances.
+/// - **Dungeon** — procedural room generation, encounters, boss fights.
+/// - **Gameplay** — combat, enemies, projectiles, player control.
+/// - **Procedural** — loot tables and procedural content generation.
+/// - **Progression** — XP, leveling, meta-progression.
+/// - **Save** — persistent player profiles and autosave/autoload.
+/// - **Network** — multiplayer connectivity (currently stubbed).
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)

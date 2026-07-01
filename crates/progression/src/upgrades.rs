@@ -13,35 +13,54 @@ use serde::{Deserialize, Serialize};
 /// A purchasable upgrade with tiered progression.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpgradeDef {
+    /// Unique identifier string for this upgrade.
     pub id: &'static str,
+    /// Display name shown in the upgrade UI.
     pub name: &'static str,
+    /// Short description of what this upgrade does.
     pub description: &'static str,
+    /// Category for grouping upgrades in the UI.
     pub category: UpgradeCategory,
+    /// Maximum purchasable tier (1 means single-purchase unlock).
     pub max_tier: u32,
+    /// Base cost in Dark Essence at tier 0.
     pub base_cost: u64,
+    /// Cost multiplier per tier: `cost = base_cost × cost_multiplier^tier`.
     pub cost_multiplier: f32,
+    /// Asset path / icon identifier for the upgrade icon.
     pub icon_id: &'static str,
-    /// Per-tier stat bonuses applied when unlocked.
+    /// Per-tier stat bonuses applied when the upgrade is unlocked.
     pub per_tier_stats: Vec<StatBonus>,
 }
 
 /// Category for grouping upgrades in the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum UpgradeCategory {
-    Stats,       // Global stat boosts
-    Weapons,     // Starting weapon unlocks
-    Classes,     // Class-specific talents
-    Utility,     // Gold gain, XP gain, pickup radius
+    /// Global stat boosts (max HP, damage, armor, move speed, crit, lifesteal).
+    Stats,
+    /// Starting weapon unlocks (e.g. dagger, bow, staff).
+    Weapons,
+    /// Class-specific talents (currently unused / placeholder).
+    Classes,
+    /// Utility bonuses (XP gain, gold gain, pickup radius).
+    Utility,
 }
 
 /// A stat bonus applied at a given tier.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatBonus {
+    /// The stat type this bonus affects.
     pub stat: StatType,
+    /// Amount added to the stat at each tier.
     pub value: f32,
 }
 
-/// All available meta-progression upgrades.
+/// Returns all available meta-progression upgrade definitions.
+///
+/// Includes stat boosts (Vitality, Might, Fortitude, Agility, Precision, Leech),
+/// weapon unlocks (dagger, bow, staff), and utility upgrades (XP boost, gold
+/// boost, pickup radius). Each definition carries tier limits, cost scaling,
+/// and per-tier stat bonuses.
 pub fn all_upgrade_defs() -> Vec<UpgradeDef> {
     vec![
         // ── Stats ─────────────────────────────────────────────────
@@ -327,10 +346,14 @@ pub fn purchase_upgrade(
     Ok(())
 }
 
+/// Errors that can occur when purchasing a meta-progression upgrade.
 #[derive(Debug)]
 pub enum PurchaseError {
+    /// The given upgrade ID does not match any known upgrade definition.
     NotFound,
+    /// The upgrade has already reached its maximum tier and cannot be purchased further.
     MaxTier,
+    /// The player does not have enough Dark Essence. Contains the shortfall amount.
     InsufficientEssence(u64),
 }
 
@@ -350,6 +373,10 @@ impl std::error::Error for PurchaseError {}
 // Plugin
 // ============================================================================
 
+/// Bevy plugin for the meta-progression upgrade system.
+///
+/// Registers a system that applies accumulated upgrade stat bonuses to the
+/// player's combat stats whenever a `LevelUpEvent` is emitted.
 pub struct UpgradesPlugin;
 
 impl Plugin for UpgradesPlugin {

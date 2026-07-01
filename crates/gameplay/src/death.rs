@@ -4,7 +4,12 @@
 use bevy::prelude::*;
 use ir_core::*;
 
-/// Listens for PlayerDeathEvent and applies context-appropriate consequences.
+/// Handles the player's death with context-appropriate consequences.
+///
+/// *Dungeon death* — ends the run, sends `DungeonEndEvent`, transitions to `GameOver`.
+/// *Open-world death* — applies XP and gold loss penalties, teleports the player
+/// to the graveyard, fully heals them, and grants 3 seconds of invulnerability.
+///
 /// Fixes the double-mut-borrow issue by querying separately.
 pub fn handle_player_death_event(
     mut commands: Commands,
@@ -46,9 +51,7 @@ pub fn handle_player_death_event(
 
             // Apply gold loss (separate query to avoid double-mut-borrow)
             let gold_loss = match inventory_query.get_single_mut() {
-                Ok(inv) => {
-                    (inv.gold as f32 * penalty.gold_loss_pct) as u64
-                }
+                Ok(inv) => (inv.gold as f32 * penalty.gold_loss_pct) as u64,
                 Err(_) => 0,
             };
             if gold_loss > 0 {

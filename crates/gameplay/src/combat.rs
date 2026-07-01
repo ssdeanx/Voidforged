@@ -141,9 +141,14 @@ pub fn projectile_hit_player(
 // stagger/hit-stun, knockback, and hit-stop
 // ============================================================================
 
+/// Damage reduction applied by shields and defensive buffs.
+///
+/// Multiplier applied after armor in the damage pipeline.
+/// A value of `0.4` means 40% of incoming damage is negated.
 #[derive(Component, Clone)]
 pub struct DamageReduction {
-    pub pct: f32, // 0.0–1.0 damage reduction multiplier
+    /// Damage reduction multiplier (0.0–1.0). 1.0 = full immunity.
+    pub pct: f32,
 }
 
 /// Applies damage events to health — respects armor, dodge, crit, lifesteal, buffs.
@@ -596,8 +601,18 @@ pub fn tick_hit_flash(
 // Stamina System
 // ============================================================================
 
+<<<<<<< HEAD
 /// Regenerates stamina over time. Regen pauses for `stamina_lockout_timer`
 /// seconds after any stamina spend (wow-style lockout).
+=======
+/// Sprint toggle state.
+///
+/// `true` when the player is currently sprinting (consuming stamina).
+#[derive(Component, Default)]
+pub struct Sprinting(pub bool);
+
+/// Tick once per second to give a periodic stamina burst.
+>>>>>>> origin/master
 pub fn stamina_regen(
     time: Res<Time>,
     mut query: Query<&mut Stamina, With<Player>>,

@@ -6,6 +6,10 @@ use ir_core::*;
 use crate::zone::*;
 use crate::map::*;
 
+/// Bevy plugin for the open world map.
+///
+/// Initializes the `CurrentZone` resource and registers systems for world
+/// generation, player zone tracking, and dungeon entrance detection.
 pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {

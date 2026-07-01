@@ -2,8 +2,8 @@
 //! Replaces the ad-hoc roll logic in procedural::loot::spawn_loot.
 
 use bevy::prelude::*;
-use ir_core::*;
 use ir_core::ItemDatabase;
+use ir_core::*;
 use rand::Rng;
 
 // ============================================================================
@@ -11,24 +11,36 @@ use rand::Rng;
 // ============================================================================
 
 /// A single entry in a loot table.
+///
+/// Each entry has an item ID (matching `ItemDef.id`), a relative weight
+/// that controls probability, a configurable stack count range, and a
+/// base drop-chance gate.
 pub struct LootEntry {
-    /// Matches ItemDef.id in the ItemDatabase.
+    /// Matches `ItemDef.id` in the `ItemDatabase`.
     pub item_id: &'static str,
-    /// Relative weight (higher = more likely).
+    /// Relative weight (higher = more likely to be selected).
     pub weight: f32,
-    /// Per-drop: how many items (min).
+    /// Per-drop minimum number of items.
     pub min_count: u16,
-    /// Per-drop: how many items (max, exclusive).
+    /// Per-drop maximum number of items (exclusive upper bound).
     pub max_count: u16,
-    /// 0.0–1.0: base chance this entry is rolled at all.
+    /// Base probability (0.0–1.0) that this entry is rolled at all.
     pub drop_chance: f32,
 }
 
 impl LootEntry {
+    /// Creates a new `LootEntry` with default stack range (1–2).
     pub const fn new(item_id: &'static str, weight: f32, drop_chance: f32) -> Self {
-        Self { item_id, weight, min_count: 1, max_count: 2, drop_chance }
+        Self {
+            item_id,
+            weight,
+            min_count: 1,
+            max_count: 2,
+            drop_chance,
+        }
     }
 
+    /// Overrides the per-drop stack range to `min..max`.
     pub const fn stacked(mut self, min: u16, max: u16) -> Self {
         self.min_count = min;
         self.max_count = max;
@@ -42,19 +54,27 @@ impl LootEntry {
 
 /// A collection of weighted loot entries. Rolled once when an enemy dies.
 pub struct LootTable {
+    /// The weighted entries making up this loot table.
     pub entries: Vec<LootEntry>,
 }
 
 impl LootTable {
+    /// Creates a new `LootTable` from the given entries.
     pub const fn new(entries: Vec<LootEntry>) -> Self {
         Self { entries }
     }
 
-    /// Rolls the table and returns a list of (item_id, count) pairs.
+    /// Rolls the table and returns a list of `(item_id, count)` pairs.
+    ///
+    /// Each entry goes through a drop-chance gate first, then a weighted
+    /// roll against the total weight. `rarity_mult` and `tier_bonus`
+    /// scale the drop rates and stack counts.
     pub fn roll(&self, rng: &mut impl Rng, rarity_mult: f32, tier_bonus: u32) -> Vec<(&'static str, u16)> {
         let mut results = Vec::new();
         let total_weight: f32 = self.entries.iter().map(|e| e.weight).sum();
-        if total_weight <= 0.0 { return results; }
+        if total_weight <= 0.0 {
+            return results;
+        }
 
         for entry in &self.entries {
             // Drop chance gate
@@ -71,10 +91,12 @@ impl LootTable {
         results
     }
 }
+
 // ============================================================================
 // Enemy Loot Tables (per variant)
 // ============================================================================
 
+/// Returns the loot table appropriate for the given enemy variant.
 pub fn table_for_variant(variant: &EnemyVariant) -> LootTable {
     match variant {
         EnemyVariant::Grunt => LootTable::new(vec![
@@ -127,7 +149,11 @@ pub fn table_for_variant(variant: &EnemyVariant) -> LootTable {
 // System: spawn item drops from loot table on enemy death
 // ============================================================================
 
-/// Listens for DeathEvent and spawns item pickups based on the enemy's loot table.
+/// Listens for `DeathEvent` and spawns item pickups based on the enemy's loot table.
+///
+/// Reads the enemy's variant and tier, rolls the appropriate loot table,
+/// and spawns `ItemDrop` entities with randomized offsets around the death
+/// position. Despawns the dead enemy entity after loot generation.
 pub fn spawn_loot_from_table(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
@@ -146,17 +172,17 @@ pub fn spawn_loot_from_table(
 
         for (item_id, count) in drops {
             // Only spawn if we have the item def registered
-            if item_db.get(item_id).is_none() { continue; }
+            if item_db.get(item_id).is_none() {
+                continue;
+            }
 
             let pos = transform.translation + Vec3::Y * 0.5;
             for _ in 0..count {
-                let offset = Vec3::new(
-                    rng.gen::<f32>() - 0.5,
-                    0.0,
-                    rng.gen::<f32>() - 0.5,
-                );
+                let offset = Vec3::new(rng.gen::<f32>() - 0.5, 0.0, rng.gen::<f32>() - 0.5);
                 commands.spawn((
-                    ItemDrop { def_id: item_id.to_string() },
+                    ItemDrop {
+                        def_id: item_id.to_string(),
+                    },
                     Transform::from_translation(pos + offset * 0.8),
                     RoomEntity,
                 ));
@@ -169,7 +195,11 @@ pub fn spawn_loot_from_table(
 }
 
 /// Marker component for a dropped item on the ground.
+///
+/// Stores the item definition ID so the pickup system can look up
+/// the item's properties when the player collects it.
 #[derive(Component, Debug, Clone)]
 pub struct ItemDrop {
+    /// The `ItemDef.id` for the database lookup.
     pub def_id: String,
 }

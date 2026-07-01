@@ -1,5 +1,23 @@
-//! Core shared types, components, resources, and events for the isometric roguelite.
-//! This crate is the foundation — every other crate depends on it.
+//! Core shared types, components, resources, and events for Voidforged.
+//!
+//! This crate is the foundation of the game — every other crate depends on it.
+//! It defines the ECS building blocks used across the entire codebase.
+//!
+//! # Modules
+//!
+//! - [`components`] — Bevy ECS components for players, enemies, projectiles, stats,
+//!   spatial data, status effects, and spawning markers.
+//! - [`resources`](self::resources) — Bevy resources for game state, configuration, assets, player input,
+//!   combat tracking, death/respawn, dungeons, meta-progression, profiles, and item database.
+//! - [`events`] — Bevy events for combat, progression, waves, rooms, game state changes,
+//!   player death, and equipment management.
+//! - [`bundles`] — Convenience `Bundle`s for spawning complex entities (player, enemy,
+//!   projectile, experience gem) with all required components.
+//! - [`items`] — Complete item system: definitions, instances, rarity tiers, equipment slots,
+//!   stat modifiers, inventory, equipment, and gear score calculations.
+//! - [`hitbox`] — Hitbox system with configurable shapes for damage zones.
+//! - [`db`] — SQLite-backed save database for character profiles.
+//! - [`plugin`] — The [`CorePlugin`] that registers all resources, events, and core systems.
 
 pub mod components;
 pub mod resources;

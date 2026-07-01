@@ -1,15 +1,22 @@
 //! Equipment system — handles equip/unequip events and stat application.
 
+use crate::loot::ItemDrop;
 use bevy::prelude::*;
 use ir_core::*;
-use crate::loot::ItemDrop;
 
 // ============================================================================
 // Equipment Events → Systems
 // ============================================================================
 
 /// Equips an item from inventory slot X into equipment slot Y.
+<<<<<<< HEAD
 /// Recalculates stats after the swap.
+=======
+///
+/// Reads `EquipItemEvent`, removes the item from inventory, places it
+/// in the `Equipment` component, and drops any previously-equipped item
+/// back to the ground or inventory.
+>>>>>>> origin/master
 pub fn handle_equip_event(
     mut commands: Commands,
     item_db: Res<ir_core::ItemDatabase>,
@@ -42,7 +49,13 @@ pub fn handle_equip_event(
 }
 
 /// Unequips an item from an equipment slot back to inventory.
+<<<<<<< HEAD
 /// Recalculates stats after the swap.
+=======
+///
+/// Reads `UnequipItemEvent`, removes the item from the given equipment
+/// slot, and places it back into the player's inventory if space allows.
+>>>>>>> origin/master
 pub fn handle_unequip_event(
     mut events: EventReader<UnequipItemEvent>,
     item_db: Res<ir_core::ItemDatabase>,
@@ -66,10 +79,17 @@ pub fn handle_unequip_event(
     }
 }
 
+<<<<<<< HEAD
 /// Adds equipment stat bonuses to CombatStats WITHOUT zeroing existing stats.
 /// This preserves class base stats (set by CharacterClass::base_stats) and
 /// meta-progression bonuses — only the equipment contribution is added.
 /// Safe to call repeatedly as long as the baseline stats are correct.
+=======
+/// Recalculates stats from equipped items.
+///
+/// Resets `CombatStats` to base values, then applies all stat modifiers
+/// from currently equipped items via `Equip::apply_stats`.
+>>>>>>> origin/master
 pub fn recalc_equipment_stats(
     item_db: &ir_core::ItemDatabase,
     equip: &Equipment,

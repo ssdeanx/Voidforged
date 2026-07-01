@@ -11,3 +11,5 @@ ir-core = { path = "../core" }
 ir-world = { path = "../world" }
 ir-progression = { path = "../progression" }
 rand = { workspace = true }
+ron = { workspace = true }
+serde = { workspace = true }
