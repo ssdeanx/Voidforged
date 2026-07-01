@@ -67,6 +67,7 @@ impl Plugin for CorePlugin {
             .add_event::<RunEndEvent>()
             .add_event::<DamageNumberEvent>()
             .add_event::<SpawnImpactEvent>()
+            .add_event::<SpawnDeathEffectEvent>()
 
             // Startup — populate item database + open save DB
             .add_systems(Startup, (init_item_database, init_save_db))

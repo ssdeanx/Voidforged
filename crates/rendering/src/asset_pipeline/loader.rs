@@ -4,11 +4,15 @@ use std::collections::HashMap;
 use crate::asset_pipeline::config::AssetPipelineConfig;
 use crate::asset_pipeline::slots::{ModelCategory, ModelSlot, ModelSlotRegistry};
 
+
 /// Tracks the loading progress of queued GLTF scenes.
 #[derive(Resource, Debug, Default)]
 pub struct ModelLoadQueue {
+    /// Models still being loaded (pending asset handles).
     pub pending: HashMap<String, Handle<Scene>>,
+    /// Models that have finished loading successfully.
     pub ready: HashMap<String, Handle<Scene>>,
+    /// Models whose loading failed (key → error message).
     pub failed: HashMap<String, String>,
 }
 

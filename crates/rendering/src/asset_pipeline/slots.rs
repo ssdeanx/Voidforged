@@ -8,6 +8,7 @@ use std::collections::HashMap;
 /// spawn a GLTF scene or fall back to placeholder quads.
 #[derive(Resource, Debug, Default)]
 pub struct ModelSlotRegistry {
+    /// Loaded scene handles, keyed by `"category/name"`.
     pub scenes: HashMap<String, Handle<Scene>>,
 }
 
@@ -66,24 +67,35 @@ impl ModelSlotRegistry {
 /// and the GLTF model appears automatically.
 #[derive(Component, Debug, Clone)]
 pub struct ModelSlot {
+    /// High-level category (Character, Enemy, Weapon, etc.).
     pub category: ModelCategory,
+    /// Specific model name within the category (e.g., "Warrior", "Sword").
     pub name: String,
+    /// Uniform scale applied to the loaded scene.
     pub scale: f32,
+    /// Whether the scene has already been spawned for this slot.
     pub spawned: bool,
 }
 
 /// High-level model categories — maps one-to-one to config sections.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ModelCategory {
+    /// Playable character models.
     Character,
+    /// Enemy variant models.
     Enemy,
+    /// Weapon models (attached to characters).
     Weapon,
+    /// Pickup item models (health, gold, etc.).
     Pickup,
+    /// Environment / scenery models.
     Environment,
+    /// Projectile models (magic missiles, arrows, etc.).
     Projectile,
 }
 
 impl ModelCategory {
+    /// Returns the config key string used in `ModelSlotRegistry` lookups.
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Character => "character",
@@ -103,6 +115,7 @@ impl std::fmt::Display for ModelCategory {
 }
 
 impl ModelSlot {
+    /// Creates a new `ModelSlot` with default `scale: 1.0` and `spawned: false`.
     pub fn new(category: ModelCategory, name: impl Into<String>) -> Self {
         Self {
             category,
@@ -112,6 +125,7 @@ impl ModelSlot {
         }
     }
 
+    /// Sets a custom scale factor for this slot (builder pattern).
     pub fn with_scale(mut self, scale: f32) -> Self {
         self.scale = scale;
         self
@@ -121,10 +135,15 @@ impl ModelSlot {
 /// Character model enum — converts to `ModelSlot`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CharacterModel {
+    /// Warrior class (sword-and-board melee).
     Warrior,
+    /// Paladin class (holy warrior).
     Paladin,
+    /// Rogue class (stealthy melee).
     Rogue,
+    /// Hunter class (ranged bow user).
     Hunter,
+    /// Mage class (spellcaster).
     Mage,
 }
 
@@ -161,10 +180,15 @@ impl From<CharacterModel> for ModelSlot {
 /// Enemy model enum — converts to `ModelSlot`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EnemyModel {
+    /// Basic melee enemy.
     Grunt,
+    /// Ranged / projectile enemy.
     Ranged,
+    /// Fast charge-attack enemy.
     Charger,
+    /// High-stat elite enemy.
     Elite,
+    /// Boss enemy (unique mechanics).
     Boss,
 }
 

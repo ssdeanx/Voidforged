@@ -26,6 +26,13 @@ pub struct MetaProgression {
     pub upgrades: Vec<UpgradeTier>,
 }
 
+impl MetaProgression {
+    /// Add Dark Essence — the primary meta-progression currency earned from dungeon runs.
+    pub fn add_dark_essence(&mut self, amount: u64) {
+        self.dark_essence = self.dark_essence.saturating_add(amount);
+    }
+}
+
 impl Default for MetaProgression {
     fn default() -> Self {
         Self {

@@ -9,3 +9,6 @@ serde = { workspace = true }
 rand = { workspace = true }
 ir-core = { path = "../core" }
 ir-procedural = { path = "../procedural" }
+ir-world = { path = "../world" }
+ir-dungeon = { path = "../dungeon" }
+ir-progression = { path = "../progression" }

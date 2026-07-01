@@ -4,6 +4,7 @@
 //! and following, lighting, asset placeholder generation, HUD/UI, particle effects,
 //! screen shake, damage numbers, and the GLTF asset pipeline.
 
+pub mod audio;
 /// Module for isometric camera setup, following, and screen shake.
 pub mod camera;
 /// Module for 3D scene lighting (directional + ambient).
@@ -18,8 +19,10 @@ pub mod hud;
 pub mod effects;
 /// Module for GLTF model loading pipeline.
 pub mod asset_pipeline;
+pub mod ui_textures;
 /// Plugin registration — wires all rendering systems into the Bevy app.
 pub mod plugin;
 
 /// The top-level plugin for all rendering systems.
 pub use plugin::RenderingPlugin;
+pub use ui_textures::UiTextureAssets;

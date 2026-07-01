@@ -8,15 +8,27 @@ use rand::Rng;
 #[derive(Component)]
 pub struct IsometricCamera;
 
+/// Bundle of components needed for an isometric 3D camera entity.
+///
+/// Includes a `Camera3d`, orthographic `Projection`, transform, visibility,
+/// and the `IsometricCamera` marker component.
 #[derive(Bundle)]
 pub struct IsometricCameraBundle {
+    /// The 3D camera component.
     pub camera: Camera3d,
+    /// Orthographic projection with fixed vertical height for isometric view.
     pub projection: Projection,
+    /// Starting position (above and behind the world origin).
     pub transform: Transform,
+    /// Global transform (auto-synced by Bevy).
     pub global_transform: GlobalTransform,
+    /// Whether the camera is visible.
     pub visibility: Visibility,
+    /// Inherited visibility state.
     pub inherited_visibility: InheritedVisibility,
+    /// View visibility (computed by Bevy).
     pub view_visibility: ViewVisibility,
+    /// Marker component identifying this as the isometric camera.
     pub isometric: IsometricCamera,
 }
 

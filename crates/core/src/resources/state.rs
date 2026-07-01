@@ -13,6 +13,7 @@ pub enum AppState {
     Loading,
     /// Title / main menu screen.
     MainMenu,
+    Settings,
     /// Character selection or creation screen.
     CharacterSelect,
     /// Open-world overworld gameplay mode.

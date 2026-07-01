@@ -17,6 +17,6 @@ impl Plugin for ProceduralPlugin {
             .add_systems(Update, (
                 waves::spawn_wave,
                 waves::check_wave_cleared,
-            ).run_if(in_state(AppState::Playing)));
+            ).run_if(in_state(AppState::Playing).or(in_state(AppState::Dungeon))));
     }
 }

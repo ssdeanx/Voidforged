@@ -2,6 +2,7 @@ use crate::{classes, collection, combat, death, enemy, equipment, loot, pickup, 
 use bevy::prelude::*;
 use ir_core::*;
 
+
 /// The top-level [`Plugin`] that registers all gameplay systems.
 ///
 /// Wires player input and movement, class ability dispatchers, enemy AI,
@@ -34,27 +35,23 @@ impl Plugin for GameplayPlugin {
             .add_systems(OnEnter(AppState::Dungeon), (player::apply_equipment,))
             .add_systems(OnEnter(AppState::Playing), (player::apply_equipment,))
             // ── Player movement ─────────────────────────────────────
-            .add_systems(
-                Update,
-                (
-                    player::read_player_input,
-                    player::player_movement,
-                    player::apply_player_velocity,
-                )
-                    .run_if(can_move),
-            )
+            .add_systems(Update, (
+                player::read_player_input,
+                player::player_movement,
+                player::apply_player_velocity,
+                player::player_world_collision,
+            ).run_if(can_move))
+
             // ── Class ability dispatchers ───────────────────────────
-            .add_systems(
-                Update,
-                (
-                    classes::primary_attack,
-                    classes::secondary_attack,
-                    classes::cast_ability,
-                    classes::dash_ability,
-                    classes::class_resource_regen,
-                )
-                    .run_if(has_combat),
-            )
+            .add_systems(Update, (
+                classes::primary_attack,
+                classes::secondary_attack,
+                classes::cast_ability,
+                classes::dash_ability,
+                classes::class_resource_regen,
+                classes::tick_ability_cooldowns,
+            ).run_if(has_combat))
+
             // ── Class-specific sub-systems ──────────────────────────
             .add_systems(
                 Update,
@@ -106,53 +103,45 @@ impl Plugin for GameplayPlugin {
                     .run_if(has_combat),
             )
             // ── Combat pipeline ─────────────────────────────────────
-            .add_systems(
-                Update,
-                (
-                    combat::move_projectiles,
-                    combat::projectile_hit,
-                    combat::projectile_hit_player,
-                    combat::apply_damage,
-                    combat::apply_knockback,
-                    combat::apply_stun_movement_block,
-                    loot::spawn_loot_from_table,
-                    combat::handle_death,
-                )
-                    .chain()
-                    .run_if(has_combat),
-            )
+            .add_systems(Update, (
+                combat::move_projectiles,
+                combat::projectile_hit,
+                combat::projectile_hit_player,
+                combat::apply_damage,
+                combat::apply_knockback,
+                combat::apply_stun_movement_block,
+                loot::spawn_loot_from_table,
+                combat::handle_death,
+            ).chain().run_if(has_combat))
+
             // ── Status effect tick systems ──────────────────────────
-            .add_systems(
-                Update,
-                (
-                    combat::tick_frozen,
-                    combat::tick_stun,
-                    combat::tick_hit_stun,
-                    combat::tick_hit_stop,
-                )
-                    .run_if(has_combat),
-            )
+            .add_systems(Update, (
+                combat::tick_frozen,
+                combat::tick_stun,
+                combat::tick_hit_stun,
+                combat::tick_hit_stop,
+                combat::tick_hit_flash,
+            ).run_if(has_combat))
+
             // ── Hitbox processing ──────────────────────────────────
             .add_systems(
                 Update,
                 (combat::process_hitboxes, combat::process_enemy_hitboxes).run_if(has_combat),
             )
             // ── Pickup systems ──────────────────────────────────────
-            .add_systems(
-                Update,
-                (
-                    pickup::gem_magnet,
-                    pickup::collect_health_pickups,
-                    pickup::collect_gold_pickups,
-                    collection::collect_gems,
-                )
-                    .run_if(has_combat),
-            )
+            .add_systems(Update, (
+                pickup::gem_magnet,
+                pickup::collect_health_pickups,
+                pickup::collect_gold_pickups,
+                pickup::item_pickup_interaction,
+                collection::collect_gems,
+            ).run_if(has_combat))
+
             // ── Stamina systems ───────────────────────────────────
-            .add_systems(
-                Update,
-                (combat::stamina_regen, combat::sprint_stamina_drain).run_if(has_combat),
-            )
+            .add_systems(Update, (
+                combat::stamina_regen,
+            ).run_if(has_combat))
+
             // ── Equipment systems ──────────────────────────────────
             .add_systems(
                 Update,

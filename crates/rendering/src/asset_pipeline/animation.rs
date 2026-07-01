@@ -8,9 +8,13 @@ use ir_core::{HitStun, Velocity};
 /// Each variant's `as_str()` returns the key used in `AssetPipelineConfig.animations`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AnimState {
+    /// Character is standing still with no velocity.
     Idle,
+    /// Character is moving (velocity magnitude > 0.1).
     Running,
+    /// Character is performing an attack (triggered externally by the ability system).
     Attacking,
+    /// Character is reacting to damage (hitstun active).
     Hit,
 }
 
@@ -32,11 +36,17 @@ impl AnimState {
 /// systems (or `tick_animation_clips`) apply the resulting state to the model.
 #[derive(Component, Debug, Clone)]
 pub struct AnimationStateMachine {
+    /// The currently active animation state.
     pub current: AnimState,
+    /// The previous animation state (used for transition detection).
     pub previous: AnimState,
+    /// Time elapsed (in seconds) since the last state transition.
     pub state_time: f32,
+    /// Duration (in seconds) the attack state persists before reverting.
     pub attack_duration: f32,
+    /// Whether the character is currently attacking (externally triggered).
     pub is_attacking: bool,
+    /// If true, the state machine updates timing but does not change states.
     pub paused: bool,
 }
 

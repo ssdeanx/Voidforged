@@ -4,8 +4,11 @@ use crate::asset_pipeline::slots::{ModelCategory, ModelSlot};
 
 #[derive(Resource, Debug, Default)]
 pub struct ModelBindingRegistry {
+    /// Maps weapon kind names (e.g., "Sword", "Bow") to their model slots.
     pub weapon_bindings: HashMap<String, ModelSlot>,
+    /// Maps pickup kind names (e.g., "Health", "Gold") to their model slots.
     pub pickup_bindings: HashMap<String, ModelSlot>,
+    /// Per-instance overrides for specific item → model slot mappings.
     pub item_overrides: HashMap<String, ModelSlot>,
 }
 

@@ -5,7 +5,8 @@
 
 use bevy::prelude::*;
 use crate::hud::components::*;
-use crate::hud::{player_frame, target_frame, ability_bar};
+use crate::hud::{player_frame, target_frame, ability_bar, inventory, equipment, tooltips, minimap, buffs};
+use crate::ui_textures::UiTextureAssets;
 
 fn label(s: &str, size: f32, color: Color) -> impl Bundle {
     (
@@ -23,7 +24,7 @@ fn label(s: &str, size: f32, color: Color) -> impl Bundle {
 /// Creates a full-screen absolute-positioned root node and adds the player
 /// frame, target frame, XP bar, zone tracker, interaction prompt, and
 /// action bar as children.
-pub fn spawn_hud(mut commands: Commands) {
+pub fn spawn_hud(mut commands: Commands, assets: Res<UiTextureAssets>) {
     commands
         .spawn((
             Node {
@@ -36,13 +37,13 @@ pub fn spawn_hud(mut commands: Commands) {
         ))
         .with_children(|parent| {
             // ── Player Unit Frame (top-left) ────────────────────────
-            player_frame::spawn_player_frame(parent);
+            player_frame::spawn_player_frame(parent, &assets);
 
             // ── Target Unit Frame (top-center) ──────────────────────
-            target_frame::spawn_target_frame(parent);
+            target_frame::spawn_target_frame(parent, &assets);
 
             // ── XP Bar (bottom, above action bar) ───────────────────
-            spawn_xp_bar(parent);
+            spawn_xp_bar(parent, &assets);
 
             // ── Zone Name / Minimap (pulsing text, bottom-center) ───
             spawn_zone_tracker(parent);
@@ -51,12 +52,27 @@ pub fn spawn_hud(mut commands: Commands) {
             spawn_prompt(parent);
 
             // ── Action Bar (bottom center) ──────────────────────────
-            ability_bar::spawn_action_bar(parent);
+            ability_bar::spawn_action_bar(parent, &assets);
+
+            // ── Buff/Debuff Bar (above XP bar) ─────────────────────
+            buffs::spawn_buff_bar(parent);
+
+            // ── Minimap (top-right corner) ──────────────────────────
+            minimap::spawn_minimap(parent);
+
+            // ── Inventory panel (right side, hidden by default) ─────
+            inventory::spawn_inventory(parent, &assets);
+
+            // ── Equipment screen (right side, hidden by default) ────
+            equipment::spawn_equipment(parent, &assets);
+
+            // ── Item tooltip (follows cursor) ──────────────────────
+            tooltips::spawn_tooltip(parent);
         });
 }
 
-/// Spawns the XP bar — blue gradient bar with text.
-fn spawn_xp_bar(parent: &mut ChildBuilder) {
+/// Spawns the XP bar — purple gradient bar with text.
+fn spawn_xp_bar(parent: &mut ChildBuilder, assets: &UiTextureAssets) {
     parent
         .spawn((
             Node {
@@ -76,14 +92,14 @@ fn spawn_xp_bar(parent: &mut ChildBuilder) {
             HudXpBar,
         ))
         .with_children(|xp_bg| {
-            // Fill
+            // Fill — use XP gradient texture
             xp_bg.spawn((
                 Node {
                     width: Val::Percent(0.0),
                     height: Val::Percent(100.0),
                     ..default()
                 },
-                BackgroundColor(Color::srgb(0.25, 0.45, 0.95)),
+                ImageNode::new(assets.bar_xp.clone()),
                 HudXpBarFill,
             ));
             // Text overlay

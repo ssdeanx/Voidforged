@@ -198,7 +198,7 @@ pub fn all_upgrade_defs() -> Vec<UpgradeDef> {
             base_cost: 80,
             cost_multiplier: 2.0,
             icon_id: "icon_magnet",
-            per_tier_stats: vec![],
+            per_tier_stats: vec![StatBonus { stat: StatType::PickupRadius, value: 1.5 }],
         },
     ]
 }
@@ -216,10 +216,34 @@ pub fn upgrade_cost(def: &UpgradeDef, current_tier: u32) -> u64 {
 }
 
 // ============================================================================
+// Utility Multipliers — multiplicative bonuses for XP, Gold, Pickup Radius
+// ============================================================================
+
+/// Returns the multiplier for a utility upgrade based on purchased tier.
+///
+/// - Wisdom (xp_boost): +15% XP per tier → 1.0 + 0.15 * tier
+/// - Greed (gold_boost): +20% Gold per tier → 1.0 + 0.20 * tier
+/// - Attraction (pickup_radius_up): +1.5 radius per tier → stored as additive stat
+pub fn utility_tier_multiplier(meta: &MetaProgression, upgrade_id: &str) -> f32 {
+    let current_tier = meta
+        .upgrades
+        .iter()
+        .find(|u| u.id == upgrade_id)
+        .map(|u| u.tier)
+        .unwrap_or(0);
+    match upgrade_id {
+        "xp_boost" => 1.0 + 0.15 * current_tier as f32,
+        "gold_boost" => 1.0 + 0.20 * current_tier as f32,
+        _ => 1.0,
+    }
+}
+
+// ============================================================================
 // Application — applies unlocked upgrades to player stats
 // ============================================================================
 
 /// Sums all stat bonuses from purchased upgrades.
+/// Each upgrade's per_tier_stats value is multiplied by the tier count.
 pub fn accumulated_upgrade_stats(meta: &MetaProgression) -> Vec<StatBonus> {
     let defs = all_upgrade_defs();
     let mut accumulated: Vec<StatBonus> = Vec::new();
@@ -227,14 +251,13 @@ pub fn accumulated_upgrade_stats(meta: &MetaProgression) -> Vec<StatBonus> {
     for upgrade in &meta.upgrades {
         if let Some(def) = defs.iter().find(|d| d.id == upgrade.id) {
             let tier = upgrade.tier;
-            // Sum all tiers up to current
-            for _ in 0..tier {
-                for bonus in &def.per_tier_stats {
-                    if let Some(existing) = accumulated.iter_mut().find(|s: &&mut StatBonus| s.stat == bonus.stat) {
-                        existing.value += bonus.value;
-                    } else {
-                        accumulated.push(bonus.clone());
-                    }
+            // Apply each per-tier stat bonus multiplied by the number of purchased tiers
+            for bonus in &def.per_tier_stats {
+                let total_value = bonus.value * tier as f32;
+                if let Some(existing) = accumulated.iter_mut().find(|s: &&mut StatBonus| s.stat == bonus.stat) {
+                    existing.value += total_value;
+                } else {
+                    accumulated.push(StatBonus { stat: bonus.stat, value: total_value });
                 }
             }
         }
@@ -300,6 +323,26 @@ pub fn purchase_upgrade(
         });
     }
 
+    // Weapon unlocks: after purchasing a weapon unlock upgrade, add it to unlocks
+    match upgrade_id {
+        "unlock_dagger" => {
+            if !meta.unlocks.contains(&"dagger".to_string()) {
+                meta.unlocks.push("dagger".to_string());
+            }
+        }
+        "unlock_bow" => {
+            if !meta.unlocks.contains(&"bow".to_string()) {
+                meta.unlocks.push("bow".to_string());
+            }
+        }
+        "unlock_staff" => {
+            if !meta.unlocks.contains(&"staff".to_string()) {
+                meta.unlocks.push("staff".to_string());
+            }
+        }
+        _ => {}
+    }
+
     Ok(())
 }
 
@@ -339,6 +382,9 @@ pub struct UpgradesPlugin;
 impl Plugin for UpgradesPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_systems(OnEnter(AppState::World), apply_meta_upgrades_on_spawn)
+            .add_systems(OnEnter(AppState::Dungeon), apply_meta_upgrades_on_spawn)
+            .add_systems(OnEnter(AppState::Playing), apply_meta_upgrades_on_spawn)
             .add_systems(Update, apply_meta_upgrades_on_spawn
                 .run_if(on_event::<LevelUpEvent>));
     }

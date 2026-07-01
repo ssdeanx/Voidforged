@@ -3,7 +3,7 @@
 use bevy::prelude::*;
 use ir_core::*;
 use crate::hud::components::*;
-
+use crate::ui_textures::{UiTextureAssets, HoverableButton};
 fn label(s: &str, size: f32, color: Color) -> impl Bundle {
     (
         Text::new(s.to_string()),
@@ -14,7 +14,7 @@ fn label(s: &str, size: f32, color: Color) -> impl Bundle {
 
 // ── Main Menu ───────────────────────────────────────────────────────────────
 
-pub fn spawn_main_menu_screen(mut commands: Commands) {
+pub fn spawn_main_menu_screen(mut commands: Commands, assets: Res<UiTextureAssets>) {
     commands
         .spawn((
             Node {
@@ -25,13 +25,24 @@ pub fn spawn_main_menu_screen(mut commands: Commands) {
                 justify_content: JustifyContent::Center,
                 ..default()
             },
+            ImageNode::new(assets.panel_dark.clone()),
             MainMenuRoot,
         ))
         .with_children(|root| {
             root.spawn((label("VOIDFORGED", 48.0, Color::srgb(0.7, 0.5, 1.0)), MainMenuRoot));
             root.spawn((Node { height: Val::Px(20.0), ..default() }, MainMenuRoot));
-            root.spawn((label("Press ENTER to start", 24.0, Color::srgb(0.4, 0.7, 1.0)), MainMenuRoot));
+
+            // Prominent "Press ENTER to start" — pulsing scale tween
+            root.spawn((
+                label("Press ENTER to start", 36.0, Color::srgb(0.6, 0.9, 1.0)),
+                MainMenuRoot,
+                ir_core::tween::Tween::pulse_scale(1.0, 1.05, 1.5),
+            ));
             root.spawn((Node { height: Val::Px(40.0), ..default() }, MainMenuRoot));
+
+            // ── Controls section header ──
+            root.spawn((label("── Controls ──", 20.0, Color::srgb(0.5, 0.5, 0.7)), MainMenuRoot));
+            root.spawn((Node { height: Val::Px(8.0), ..default() }, MainMenuRoot));
 
             let controls = [
                 ("WASD / Arrows", "Move"),
@@ -56,6 +67,56 @@ pub fn spawn_main_menu_screen(mut commands: Commands) {
             }
 
             root.spawn((Node { height: Val::Px(30.0), ..default() }, MainMenuRoot));
+
+            // ── Settings button (primary) ──
+            root.spawn((
+                Node {
+                    width: Val::Px(200.0),
+                    height: Val::Px(40.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border: UiRect::all(Val::Px(1.0)),
+                    ..default()
+                },
+                ImageNode::new(assets.btn_primary.clone()),
+                BorderColor(Color::srgb(0.4, 0.4, 0.6)),
+                MainMenuSettingsBtn,
+                MainMenuRoot,
+                Button,
+                HoverableButton {
+                    normal: assets.btn_primary.clone(),
+                    hover: assets.btn_hover.clone(),
+                },
+            )).with_children(|btn| {
+                btn.spawn((label("SETTINGS", 20.0, Color::srgb(0.6, 0.8, 1.0)), MainMenuRoot));
+            });
+
+            root.spawn((Node { height: Val::Px(12.0), ..default() }, MainMenuRoot));
+
+            // ── Quit button (danger) ──
+            root.spawn((
+                Node {
+                    width: Val::Px(200.0),
+                    height: Val::Px(40.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border: UiRect::all(Val::Px(1.0)),
+                    ..default()
+                },
+                ImageNode::new(assets.btn_danger.clone()),
+                BorderColor(Color::srgb(0.5, 0.2, 0.2)),
+                MainMenuQuitBtn,
+                MainMenuRoot,
+                Button,
+                HoverableButton {
+                    normal: assets.btn_danger.clone(),
+                    hover: assets.btn_hover.clone(),
+                },
+            )).with_children(|btn| {
+                btn.spawn((label("QUIT", 20.0, Color::srgb(1.0, 0.3, 0.3)), MainMenuRoot));
+            });
+
+            root.spawn((Node { height: Val::Px(30.0), ..default() }, MainMenuRoot));
             root.spawn((
                 label("VOIDFORGED v0.3.0 — Rust + Bevy 0.15", 14.0, Color::srgb(0.4, 0.4, 0.5)),
                 MainMenuRoot,
@@ -69,9 +130,30 @@ pub fn despawn_main_menu(mut commands: Commands, menu: Query<Entity, With<MainMe
     }
 }
 
+/// Handles clicks on the Settings and Quit buttons in the main menu.
+pub fn handle_main_menu_buttons(
+    interaction_query: Query<&Interaction, (With<MainMenuSettingsBtn>, Changed<Interaction>)>,
+    quit_query: Query<&Interaction, (With<MainMenuQuitBtn>, Changed<Interaction>)>,
+    mut next_state: ResMut<NextState<AppState>>,
+    mut exit: EventWriter<AppExit>,
+) {
+    for interaction in interaction_query.iter() {
+        if *interaction == Interaction::Pressed {
+            next_state.set(AppState::Settings);
+            return;
+        }
+    }
+    for interaction in quit_query.iter() {
+        if *interaction == Interaction::Pressed {
+            exit.send(AppExit::Success);
+            return;
+        }
+    }
+}
+
 // ── Game Over ───────────────────────────────────────────────────────────────
 
-pub fn spawn_game_over_screen(mut commands: Commands, progression: Res<RunProgression>) {
+pub fn spawn_game_over_screen(mut commands: Commands, assets: Res<UiTextureAssets>, progression: Res<RunProgression>) {
     commands
         .spawn((
             Node {
@@ -82,7 +164,7 @@ pub fn spawn_game_over_screen(mut commands: Commands, progression: Res<RunProgre
                 justify_content: JustifyContent::Center,
                 ..default()
             },
-            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.8)),
+            ImageNode::new(assets.panel_dark.clone()),
             GameOverRoot,
         ))
         .with_children(|root| {
@@ -117,7 +199,7 @@ pub fn despawn_game_over(mut commands: Commands, screen: Query<Entity, With<Game
 
 // ── Pause Overlay ───────────────────────────────────────────────────────────
 
-pub fn spawn_pause_overlay(mut commands: Commands) {
+pub fn spawn_pause_overlay(mut commands: Commands, assets: Res<UiTextureAssets>) {
     commands.spawn((
         Node {
             width: Val::Percent(100.0),
@@ -128,7 +210,7 @@ pub fn spawn_pause_overlay(mut commands: Commands) {
             justify_content: JustifyContent::Center,
             ..default()
         },
-        BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.5)),
+        ImageNode::new(assets.panel_dark.clone()),
         PauseOverlay,
     )).with_children(|root| {
         root.spawn((label("PAUSED", 48.0, Color::srgb(0.6, 0.8, 1.0)), PauseOverlay));

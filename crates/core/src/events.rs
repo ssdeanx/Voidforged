@@ -155,6 +155,13 @@ pub struct SpawnImpactEvent {
     pub color: Option<Vec4>,
 }
 
+/// Fired to spawn a death particle effect at a position.
+#[derive(Event, Debug, Clone)]
+pub struct SpawnDeathEffectEvent {
+    pub position: Vec3,
+    pub enemy_variant: EnemyVariant,
+}
+
 // ============================================================================
 // Player Death Events
 // ============================================================================
