@@ -35,7 +35,6 @@ impl Plugin for GameplayPlugin {
             .add_systems(OnEnter(AppState::Dungeon), (player::apply_equipment,))
             .add_systems(OnEnter(AppState::Playing), (player::apply_equipment,))
             // ── Player movement ─────────────────────────────────────
-<<<<<<< HEAD
             .add_systems(Update, (
                 player::read_player_input,
                 player::player_movement,
@@ -53,29 +52,6 @@ impl Plugin for GameplayPlugin {
                 classes::tick_ability_cooldowns,
             ).run_if(has_combat))
 
-=======
-            .add_systems(
-                Update,
-                (
-                    player::read_player_input,
-                    player::player_movement,
-                    player::apply_player_velocity,
-                )
-                    .run_if(can_move),
-            )
-            // ── Class ability dispatchers ───────────────────────────
-            .add_systems(
-                Update,
-                (
-                    classes::primary_attack,
-                    classes::secondary_attack,
-                    classes::cast_ability,
-                    classes::dash_ability,
-                    classes::class_resource_regen,
-                )
-                    .run_if(has_combat),
-            )
->>>>>>> origin/master
             // ── Class-specific sub-systems ──────────────────────────
             .add_systems(
                 Update,
@@ -127,7 +103,6 @@ impl Plugin for GameplayPlugin {
                     .run_if(has_combat),
             )
             // ── Combat pipeline ─────────────────────────────────────
-<<<<<<< HEAD
             .add_systems(Update, (
                 combat::move_projectiles,
                 combat::projectile_hit,
@@ -135,6 +110,7 @@ impl Plugin for GameplayPlugin {
                 combat::apply_damage,
                 combat::apply_knockback,
                 combat::apply_stun_movement_block,
+                loot::spawn_loot_from_table,
                 combat::handle_death,
             ).chain().run_if(has_combat))
 
@@ -147,41 +123,12 @@ impl Plugin for GameplayPlugin {
                 combat::tick_hit_flash,
             ).run_if(has_combat))
 
-=======
-            .add_systems(
-                Update,
-                (
-                    combat::move_projectiles,
-                    combat::projectile_hit,
-                    combat::projectile_hit_player,
-                    combat::apply_damage,
-                    combat::apply_knockback,
-                    combat::apply_stun_movement_block,
-                    loot::spawn_loot_from_table,
-                    combat::handle_death,
-                )
-                    .chain()
-                    .run_if(has_combat),
-            )
-            // ── Status effect tick systems ──────────────────────────
-            .add_systems(
-                Update,
-                (
-                    combat::tick_frozen,
-                    combat::tick_stun,
-                    combat::tick_hit_stun,
-                    combat::tick_hit_stop,
-                )
-                    .run_if(has_combat),
-            )
->>>>>>> origin/master
             // ── Hitbox processing ──────────────────────────────────
             .add_systems(
                 Update,
                 (combat::process_hitboxes, combat::process_enemy_hitboxes).run_if(has_combat),
             )
             // ── Pickup systems ──────────────────────────────────────
-<<<<<<< HEAD
             .add_systems(Update, (
                 pickup::gem_magnet,
                 pickup::collect_health_pickups,
@@ -195,23 +142,6 @@ impl Plugin for GameplayPlugin {
                 combat::stamina_regen,
             ).run_if(has_combat))
 
-=======
-            .add_systems(
-                Update,
-                (
-                    pickup::gem_magnet,
-                    pickup::collect_health_pickups,
-                    pickup::collect_gold_pickups,
-                    collection::collect_gems,
-                )
-                    .run_if(has_combat),
-            )
-            // ── Stamina systems ───────────────────────────────────
-            .add_systems(
-                Update,
-                (combat::stamina_regen, combat::sprint_stamina_drain).run_if(has_combat),
-            )
->>>>>>> origin/master
             // ── Equipment systems ──────────────────────────────────
             .add_systems(
                 Update,
