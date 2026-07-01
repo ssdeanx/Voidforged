@@ -3,8 +3,16 @@ name = "ir-network"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = []
+multiplayer = ["dep:uuid", "dep:tungstenite"]
+
 [dependencies]
 bevy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 ir-core = { path = "../core" }
+
+# Networking (optional -- gated behind `multiplayer` feature)
+uuid = { version = "1", features = ["v4", "serde"], optional = true }
+tungstenite = { version = "0.26", optional = true }

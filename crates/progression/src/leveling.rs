@@ -1,3 +1,5 @@
+//! Experience and leveling systems — processes XP gain events and applies level-up bonuses.
+
 use bevy::prelude::*;
 use ir_core::*;
 
@@ -44,5 +46,18 @@ pub fn apply_level_up(
             health.max += 10.0;
             health.current = health.max;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_xp_to_next_formula() {
+        let xp_to_next_l1 = (100.0 * 1.3_f64.powi(1)) as u64;
+        assert_eq!(xp_to_next_l1, 130);
+        let xp_to_next_l2 = (100.0 * 1.3_f64.powi(2)) as u64;
+        assert_eq!(xp_to_next_l2, 169);
     }
 }

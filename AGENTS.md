@@ -3,27 +3,27 @@
 An **MMO action RPG** blending Hades-style skill-based combat with an open world, procedural dungeons, class-based progression, and persistent online multiplayer.
 
 **Tech Stack:**
-- **Client/Server:** Rust + Bevy 0.15 ECS (client), Tokio + Axum + sqlx (server)
-- **Rendering:** PBR 3D, bevy_hanabi GPU particles, WGSL shaders
-- **Database:** PostgreSQL (server-side, sqlx with connection pooling)
-- **Networking:** WebSocket-based deterministic lockstep with authority
-- **CI/CD:** GitHub Actions
+- **Client:** Rust + Bevy 0.15 ECS, 2D billboard sprites in 3D isometric
+- **Server:** Bevy ECS headless (MinimalPlugins), WebSocket-based protocol skeleton
+- **Rendering:** Placeholder procedural quads (colored rectangles/circles + emissive glows), bevy_hanabi GPU particles
+- **Database:** SQLite via rusqlite (bundled), Bincode-serialized BLOBs
+- **Networking:** Multiplayer feature-gated (`multiplayer` flag), tungstenite + UUID deps
 
 ## Repository Structure
 
 ```
 crates/
-├── core/          — Shared types, components, resources, events (no game logic)
-├── client/        — Game client binary (Bevy app + rendering + UI)
-├── server/        — Game server binary (auth, world state, DB, networking)
-├── rendering/     — 3D isometric camera, lighting, VFX, HUD/UI
-├── gameplay/      — Combat, enemies, classes, abilities, loot, movement
-├── procedural/    — Dungeon/terrain procedural generation
-├── progression/   — Character stats, leveling, talent trees
-├── world/         — Zone management, spawners, NPC placement
-├── dungeon/       — Instance-based dungeon logic
-├── network/       — Protocol definitions, packet serialization
-└── save/          — Server-side save/load and migration tools
+├── core/          — Shared types, components, resources, events, items, save DB
+├── client/        — Game client binary (Bevy app + all plugins)
+├── server/        — Dedicated server binary (headless, MinimalPlugins + gameplay)
+├── rendering/     — Isometric camera, lighting, VFX, HUD/UI, placeholder assets
+├── gameplay/      — Combat, enemies, classes, abilities, loot, movement, equipment
+├── procedural/    — Wave spawning, loot table definitions
+├── progression/   — XP/leveling, meta-progression upgrades (Dark Essence)
+├── world/         — Zone management, map generation, dungeon entrance detection
+├── dungeon/       — Procedural room generation, exits
+├── network/       — Protocol definitions, client/server connection manager
+└── save/          — Save/load utilities (currently re-exports core DB)
 ```
 
 ## Build Commands
@@ -31,37 +31,28 @@ crates/
 ```bash
 # Client
 cargo run -p ir-client          # Launch game client
-cargo run -p ir-client -- --server 127.0.0.1:9876  # Connect to custom server
 
-# Server
+# Server (headless)
 cargo run -p ir-server          # Start game server (port 9876)
 
 # Checks
 cargo check --workspace         # Full compile check (all crates)
 cargo clippy --workspace        # Lint all crates
 cargo test --workspace          # Run all tests
+
+# Multiplayer feature
+cargo check -p ir-network --features multiplayer
 ```
 
 ## Architecture Data Flow
 
 ```
-Client (Bevy)  ←→  WebSocket  ←→  Server (Tokio/Axum)
+Client (Bevy)  ←→  WebSocket (planned)  ←→  Server (BEVY/headless)
                                     │
-                                    ├─ PostgreSQL (characters, inventory, world state)
-                                    ├─ Redis (sessions, leaderboards, world cache)
-                                    └─ S3 (asset store — not yet implemented)
+                                    └─ SQLite (profiles, saves)
 ```
 
-## Security Baseline
-
-- **Never trust client.** Server validates every action (position, damage, loot).
-- Authentication via token (JWT or session key) on connect.
-- Server authorizes: movement, combat rolls, loot acquisition, stat changes.
-- Client is a thin renderer + input collector + prediction layer.
-- No secrets in client binary. Asset keys, DB credentials live on server only.
-- Rate-limit connections per IP.
-
-## Entity Component System (ECS) Conventions
+## ECS Conventions
 
 - Components in `ir_core::components` — shared between client and server.
 - Events for cross-system communication (DamageEvent, DeathEvent, etc.).
@@ -71,13 +62,21 @@ Client (Bevy)  ←→  WebSocket  ←→  Server (Tokio/Axum)
 
 ## Class System
 
-| Class    | Resource    | Role           | Primary | Secondary | Cast         | Dash        |
-|----------|-------------|----------------|---------|-----------|-------------|-------------|
-| Warrior  | Rage        | Melee Tank     | Cleave  | Shield    | Charge      | Roll        |
-| Paladin  | Holy Power  | Hybrid Healer  | Strike  | Heal      | Consecration| Steed       |
-| Rogue    | Energy      | Melee DPS      | Backstab| Poison    | Vanish      | Shadowstep  |
-| Hunter   | Focus       | Ranged DPS     | Aimed   | Multi     | Trap        | Disengage   |
-| Mage     | Mana        | Magic DPS      | Fireball| Frostbolt | Arcane Blast| Blink      |
+| Class    | Resource    | Role           | Primary    | Secondary  | Cast          | Dash        |
+|----------|-------------|----------------|------------|------------|---------------|-------------|
+| Warrior  | Rage        | Melee Tank     | Cleave     | Shield     | Charge        | Roll        |
+| Paladin  | Holy Power  | Hybrid Healer  | Strike     | Heal       | Consecration  | Steed       |
+| Rogue    | Energy      | Melee DPS      | Backstab   | Poison     | Vanish        | Shadowstep  |
+| Hunter   | Focus       | Ranged DPS     | Aimed Shot | Multi Shot | Trap          | Disengage   |
+| Mage     | Mana        | Magic DPS      | Fireball   | Frostbolt  | Arcane Blast  | Blink       |
+
+## Item System
+
+Full pipeline: `ItemDef` templates → `ItemInstance` (with rolls) → `Inventory` (slots) → `Equipment` (equipped slots) → `GearScore` (rating) → stat modifiers. Rarity tiers: Common → Uncommon → Rare → Epic → Legendary. Stats include DamageBonus, AttackSpeedBonus, CritChance, Armor, MaxHealth, MoveSpeed, Lifesteal, PickupRadius.
+
+## Meta-Progression
+
+Permanent upgrades between runs using Dark Essence: stat boosts (Vitality, Might, Fortitude, Agility, Precision, Leech), weapon unlocks (Dagger, Bow, Staff), and utility upgrades (Wisdom, Greed, Attraction). Tiered with escalating costs.
 
 ## Commit Conventions
 
@@ -85,11 +84,3 @@ Client (Bevy)  ←→  WebSocket  ←→  Server (Tokio/Axum)
 - Format: `feat: add X`, `fix: correct Y`, `refactor: extract Z`, `docs: update README`.
 - Never commit `.env` files or credentials.
 - Keep AGENTS.md synced — it's the agent onboarding document.
-
-## Engine Guidance
-
-This project uses **Hermes Agent** with Bevy's ECS paradigm.
-- Complex multi-file refactors → delegate_task or work directly with Hermes.
-- Targeted single-file fixes → patch directly.
-- UI exploration before coding → sketch or design-md.
-- Not sure about architecture → check AGENTS.md and the crates involved.

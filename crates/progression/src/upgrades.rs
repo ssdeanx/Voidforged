@@ -325,3 +325,74 @@ fn apply_meta_upgrades_on_spawn(
     let Ok(mut stats) = player_query.get_single_mut() else { return };
     apply_upgrade_stats(&mut stats, &meta);
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_upgrade_cost_at_base() {
+        let def = UpgradeDef {
+            id: "max_hp_up", name: "Vitality", description: "Increase maximum health.",
+            category: UpgradeCategory::Stats, max_tier: 5, base_cost: 100,
+            cost_multiplier: 2.0, icon_id: "icon_hp_up",
+            per_tier_stats: vec![StatBonus { stat: StatType::MaxHealth, value: 20.0 }],
+        };
+        assert_eq!(upgrade_cost(&def, 0), 100);
+        assert_eq!(upgrade_cost(&def, 1), 200);
+        assert_eq!(upgrade_cost(&def, 2), 400);
+    }
+
+    #[test]
+    fn test_upgrade_cost_maxed_returns_max() {
+        let def = UpgradeDef {
+            id: "unlock_dagger", name: "Shadow's Kiss", description: "Unlock Dagger.",
+            category: UpgradeCategory::Weapons, max_tier: 1, base_cost: 300,
+            cost_multiplier: 1.0, icon_id: "icon_dagger", per_tier_stats: vec![],
+        };
+        assert_eq!(upgrade_cost(&def, 0), 300);
+        assert_eq!(upgrade_cost(&def, 1), u64::MAX);
+    }
+
+    #[test]
+    fn test_all_upgrade_defs() {
+        let defs = all_upgrade_defs();
+        assert!(defs.iter().any(|d| d.id == "max_hp_up"));
+        assert!(defs.iter().any(|d| d.id == "unlock_staff"));
+    }
+
+    #[test]
+    fn test_accumulated_upgrade_stats_empty() {
+        let meta = MetaProgression::default();
+        assert!(accumulated_upgrade_stats(&meta).is_empty());
+    }
+
+    #[test]
+    fn test_purchase_upgrade_success() {
+        let mut meta = MetaProgression::default();
+        meta.dark_essence = 500;
+        purchase_upgrade("max_hp_up", &mut meta).unwrap();
+        assert_eq!(meta.dark_essence, 400);
+        assert_eq!(meta.upgrades[0].tier, 1);
+    }
+
+    #[test]
+    fn test_purchase_upgrade_not_found() {
+        let mut meta = MetaProgression::default();
+        assert!(matches!(purchase_upgrade("nonexistent", &mut meta), Err(PurchaseError::NotFound)));
+    }
+
+    #[test]
+    fn test_purchase_upgrade_max_tier() {
+        let mut meta = MetaProgression::default();
+        meta.dark_essence = 10000;
+        purchase_upgrade("unlock_dagger", &mut meta).unwrap();
+        assert!(matches!(purchase_upgrade("unlock_dagger", &mut meta), Err(PurchaseError::MaxTier)));
+    }
+
+    #[test]
+    fn test_purchase_error_display() {
+        assert_eq!(format!("{}", PurchaseError::NotFound), "Upgrade not found");
+        assert_eq!(format!("{}", PurchaseError::MaxTier), "Upgrade already at max tier");
+    }
+}

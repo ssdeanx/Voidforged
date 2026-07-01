@@ -1,7 +1,13 @@
+//! Plugin that registers procedural generation systems — wave spawning and checking.
+
 use bevy::prelude::*;
 use ir_core::*;
 use crate::waves;
 
+/// Bevy plugin for procedural wave-based enemy spawning.
+///
+/// Registers `spawn_wave` and `check_wave_cleared` systems that run during
+/// the `Playing` game state.
 pub struct ProceduralPlugin;
 
 impl Plugin for ProceduralPlugin {
