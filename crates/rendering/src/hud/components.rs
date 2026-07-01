@@ -172,11 +172,7 @@ pub struct HudActionBar;
 /// Marker for an individual action bar slot.
 #[derive(Component)]
 pub struct HudActionBarSlot;
-<<<<<<< HEAD
 /// Keybind label on an action slot (e.g. "1", "2", "Q", "E")
-=======
-/// Marker for the cooldown overlay on an ability slot.
->>>>>>> origin/master
 #[derive(Component)]
 pub struct HudKeybindLabel;
 /// The icon/placeholder inside an action slot

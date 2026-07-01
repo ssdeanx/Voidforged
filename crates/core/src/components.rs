@@ -203,7 +203,6 @@ impl CharacterClass {
         }
     }
 
-<<<<<<< HEAD
     pub fn is_unlocked(&self, unlocks: &[String]) -> bool {
         match self.starting_weapon().kind {
             WeaponKind::Sword => true, // Sword and Aura are always available
@@ -215,9 +214,7 @@ impl CharacterClass {
         }
     }
 
-=======
     /// Returns the starting [`Weapon`] for this class at level 1.
->>>>>>> origin/master
     pub fn starting_weapon(&self) -> Weapon {
         match self {
             Self::Warrior => Weapon::new(WeaponKind::Sword, 14.0, 1.0, 3.5),
@@ -228,7 +225,6 @@ impl CharacterClass {
         }
     }
 
-<<<<<<< HEAD
     /// Returns resource costs for each ability slot: (primary, secondary, cast, dash).
     /// Most classes have 0-cost for some slots (e.g. Warrior has no resource cost on any slot,
     /// generating Rage by dealing/taking damage instead).
@@ -242,10 +238,7 @@ impl CharacterClass {
         }
     }
 
-    /// Which ability fires on primary attack (LMB hold)
-=======
     /// Returns the [`ClassAbilityId`] for this class's primary attack (LMB hold).
->>>>>>> origin/master
     pub fn primary_ability(&self) -> ClassAbilityId {
         match self {
             Self::Warrior => ClassAbilityId::MeleeCleave,
@@ -308,13 +301,8 @@ impl std::str::FromStr for CharacterClass {
     }
 }
 
-<<<<<<< HEAD
-/// Identifiers for every class ability.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-=======
 /// Identifiers for every class ability in the game.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
->>>>>>> origin/master
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ClassAbilityId {
     // Warrior
     /// Wide cleave AoE attack.
@@ -363,7 +351,6 @@ pub enum ClassAbilityId {
     Blink,
 }
 
-<<<<<<< HEAD
 impl ClassAbilityId {
     /// Human-readable ability name for the HUD action bar.
     pub fn display_name(&self) -> &'static str {
@@ -392,12 +379,9 @@ impl ClassAbilityId {
     }
 }
 
-/// Component attached to the player — holds their class identity.
-=======
 /// Component attached to the player entity — holds their class identity.
 ///
 /// Read by the ability system to determine which skills the player can use.
->>>>>>> origin/master
 #[derive(Component, Debug, Clone)]
 pub struct PlayerClass(pub CharacterClass);
 
@@ -851,19 +835,16 @@ impl Default for Stamina {
 impl Stamina {
     /// Returns `true` if the entity has at least `amount` stamina.
     pub fn has(&self, amount: f32) -> bool { self.current >= amount }
-<<<<<<< HEAD
+    /// Reduces stamina by `amount`, clamped at zero, and sets lockout timer.
     pub fn spend(&mut self, amount: f32) {
         self.current = (self.current - amount).max(0.0);
         self.stamina_lockout_timer = 1.0;
     }
+    /// Reduces stamina by `amount` silently (no lockout timer).
     pub fn spend_silent(&mut self, amount: f32) {
         self.current = (self.current - amount).max(0.0);
     }
-=======
-    /// Reduces stamina by `amount`, clamped at zero.
-    pub fn spend(&mut self, amount: f32) { self.current = (self.current - amount).max(0.0); }
     /// Returns the fraction of remaining stamina (0.0–1.0).
->>>>>>> origin/master
     pub fn fraction(&self) -> f32 { self.current / self.max }
 }
 

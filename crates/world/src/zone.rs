@@ -16,13 +16,6 @@ pub enum ZoneId {
     Tundra,
     /// A murky swamp region (defined but not placed on the current world grid).
     Swamp,
-<<<<<<< HEAD
-    Void, // between-zone transition
-}
-
-impl ZoneId {
-    /// Short display name (enum variant).
-=======
     /// Between-zone transition / void state — returned when the player is
     /// outside all defined zones.
     Void,
@@ -30,7 +23,6 @@ impl ZoneId {
 
 impl ZoneId {
     /// Returns the human-readable display name for this zone.
->>>>>>> origin/master
     pub fn display_name(&self) -> &str {
         match self {
             ZoneId::Grasslands => "Grasslands",

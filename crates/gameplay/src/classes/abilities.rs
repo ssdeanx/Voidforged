@@ -9,55 +9,13 @@ use bevy::prelude::*;
 use ir_core::*;
 use crate::classes::{hunter, mage, paladin, rogue, warrior};
 
-<<<<<<< HEAD
 /// Passive regeneration of the per-class resource (Rage, Holy Power, etc.).
+///
+/// Adds `regen_rate * delta_secs` to the resource, capped at `max`.
 pub fn class_resource_regen(
     time: Res<Time>,
     mut query: Query<&mut ClassResource, With<Player>>,
 ) {
-=======
-// ============================================================================
-// Class Resource Component
-// ============================================================================
-
-/// Per-class resource bar component (Rage, Energy, Mana, Focus, Holy Power).
-///
-/// Each class has its own resource type with different max capacity and
-/// regeneration rates. Ability costs are deducted from this resource.
-#[derive(Component, Debug, Clone)]
-pub struct ClassResource {
-    /// Current resource amount.
-    pub current: f32,
-    /// Maximum resource capacity.
-    pub max: f32,
-    /// Resource regenerated per second.
-    pub regen_rate: f32,
-}
-
-impl ClassResource {
-    /// Creates a new class resource starting at full capacity.
-    pub fn new(max: f32, regen_rate: f32) -> Self {
-        Self { current: max, max, regen_rate }
-    }
-    /// Returns `true` if the resource has at least `amount` available.
-    pub fn has(&self, amount: f32) -> bool { self.current >= amount }
-    /// Spends resource without checking — clamps to zero.
-    pub fn spend(&mut self, amount: f32) { self.current = (self.current - amount).max(0.0); }
-    /// Returns the current fraction (0.0–1.0) of resource remaining.
-    pub fn fraction(&self) -> f32 { if self.max > 0.0 { self.current / self.max } else { 0.0 } }
-    /// Returns `true` if enough resource is available for the given cost.
-    pub fn can_afford(&self, amount: f32) -> bool { self.current >= amount }
-    /// Tries to spend `amount`; returns `true` and deducts on success.
-    pub fn spend_resource(&mut self, amount: f32) -> bool {
-        if self.current >= amount { self.current = (self.current - amount).max(0.0); true } else { false }
-    }
-}
-
-/// Regenerates the player's class resource each frame over time.
-///
-/// Adds `regen_rate * delta_secs` to the resource, capped at `max`.
-pub fn class_resource_regen(time: Res<Time>, mut query: Query<&mut ClassResource, With<Player>>) {
->>>>>>> origin/master
     for mut resource in query.iter_mut() {
         resource.current = (resource.current + resource.regen_rate * time.delta_secs()).min(resource.max);
     }

@@ -20,15 +20,11 @@ fn label(s: &str, size: f32, color: Color) -> impl Bundle {
 }
 
 /// Spawns the full in-game HUD — root container and all child elements.
-<<<<<<< HEAD
-pub fn spawn_hud(mut commands: Commands, assets: Res<UiTextureAssets>) {
-=======
 ///
 /// Creates a full-screen absolute-positioned root node and adds the player
 /// frame, target frame, XP bar, zone tracker, interaction prompt, and
 /// action bar as children.
-pub fn spawn_hud(mut commands: Commands) {
->>>>>>> origin/master
+pub fn spawn_hud(mut commands: Commands, assets: Res<UiTextureAssets>) {
     commands
         .spawn((
             Node {

@@ -1,10 +1,7 @@
 use crate::{classes, collection, combat, death, enemy, equipment, loot, pickup, player};
 use bevy::prelude::*;
 use ir_core::*;
-<<<<<<< HEAD
-use crate::{classes, collection, combat, death, enemy, equipment, pickup, player};
-=======
->>>>>>> origin/master
+
 
 /// The top-level [`Plugin`] that registers all gameplay systems.
 ///

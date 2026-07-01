@@ -601,18 +601,14 @@ pub fn tick_hit_flash(
 // Stamina System
 // ============================================================================
 
-<<<<<<< HEAD
-/// Regenerates stamina over time. Regen pauses for `stamina_lockout_timer`
-/// seconds after any stamina spend (wow-style lockout).
-=======
 /// Sprint toggle state.
 ///
 /// `true` when the player is currently sprinting (consuming stamina).
 #[derive(Component, Default)]
 pub struct Sprinting(pub bool);
 
-/// Tick once per second to give a periodic stamina burst.
->>>>>>> origin/master
+/// Regenerates stamina over time. Regen pauses for `stamina_lockout_timer`
+/// seconds after any stamina spend (wow-style lockout).
 pub fn stamina_regen(
     time: Res<Time>,
     mut query: Query<&mut Stamina, With<Player>>,

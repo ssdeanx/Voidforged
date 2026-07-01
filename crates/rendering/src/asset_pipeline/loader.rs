@@ -2,12 +2,9 @@ use bevy::asset::LoadState;
 use bevy::prelude::*;
 use std::collections::HashMap;
 use crate::asset_pipeline::config::AssetPipelineConfig;
-<<<<<<< HEAD
-use crate::asset_pipeline::slots::ModelSlotRegistry;
-=======
 use crate::asset_pipeline::slots::{ModelCategory, ModelSlot, ModelSlotRegistry};
 
->>>>>>> origin/master
+
 /// Tracks the loading progress of queued GLTF scenes.
 #[derive(Resource, Debug, Default)]
 pub struct ModelLoadQueue {

@@ -25,10 +25,6 @@ pub mod client;
 /// Server-side connection and room manager.
 pub mod server;
 
-<<<<<<< HEAD
-pub use plugin::NetworkPlugin;
-pub use protocol::*;
-=======
 #[cfg(feature = "multiplayer")]
 /// ECS world replication configuration.
 pub mod replication;
@@ -44,4 +40,3 @@ pub use server::{ClientConnection, ClientId, NetworkServer, Room, RoomId, Server
 
 #[cfg(feature = "multiplayer")]
 pub use replication::ReplicationConfig;
->>>>>>> origin/master

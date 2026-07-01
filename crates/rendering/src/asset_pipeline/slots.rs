@@ -80,7 +80,6 @@ pub struct ModelSlot {
 /// High-level model categories — maps one-to-one to config sections.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ModelCategory {
-<<<<<<< HEAD
     /// Playable character models.
     Character,
     /// Enemy variant models.
@@ -92,13 +91,6 @@ pub enum ModelCategory {
     /// Environment / scenery models.
     Environment,
     /// Projectile models (magic missiles, arrows, etc.).
-=======
-    Character,
-    Enemy,
-    Weapon,
-    Pickup,
-    Environment,
->>>>>>> origin/master
     Projectile,
 }
 
@@ -133,10 +125,7 @@ impl ModelSlot {
         }
     }
 
-<<<<<<< HEAD
     /// Sets a custom scale factor for this slot (builder pattern).
-=======
->>>>>>> origin/master
     pub fn with_scale(mut self, scale: f32) -> Self {
         self.scale = scale;
         self
@@ -146,7 +135,6 @@ impl ModelSlot {
 /// Character model enum — converts to `ModelSlot`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CharacterModel {
-<<<<<<< HEAD
     /// Warrior class (sword-and-board melee).
     Warrior,
     /// Paladin class (holy warrior).
@@ -156,12 +144,6 @@ pub enum CharacterModel {
     /// Hunter class (ranged bow user).
     Hunter,
     /// Mage class (spellcaster).
-=======
-    Warrior,
-    Paladin,
-    Rogue,
-    Hunter,
->>>>>>> origin/master
     Mage,
 }
 
@@ -198,7 +180,6 @@ impl From<CharacterModel> for ModelSlot {
 /// Enemy model enum — converts to `ModelSlot`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EnemyModel {
-<<<<<<< HEAD
     /// Basic melee enemy.
     Grunt,
     /// Ranged / projectile enemy.
@@ -208,12 +189,6 @@ pub enum EnemyModel {
     /// High-stat elite enemy.
     Elite,
     /// Boss enemy (unique mechanics).
-=======
-    Grunt,
-    Ranged,
-    Charger,
-    Elite,
->>>>>>> origin/master
     Boss,
 }
 

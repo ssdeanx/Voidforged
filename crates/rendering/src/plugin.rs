@@ -39,8 +39,8 @@ impl Plugin for RenderingPlugin {
             .add_plugins((
                 HanabiPlugin,
                 MaterialPlugin::<GlowMaterial>::default(),
-<<<<<<< HEAD
                 audio::AudioPlugin,
+                AssetPipelinePlugin,   // GLTF asset pipeline (config, loading, slots)
             ))
 
             // Register custom events
@@ -48,10 +48,6 @@ impl Plugin for RenderingPlugin {
 
             // Resources
             .insert_resource(hud::components::AudioVolume(0.5))
-=======
-                AssetPipelinePlugin,   // GLTF asset pipeline (config, loading, slots)
-            ))
->>>>>>> origin/master
 
             // Startup — camera + lights
             .add_systems(Startup, (
@@ -164,7 +160,6 @@ impl Plugin for RenderingPlugin {
             .add_systems(Update, (
                 hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::World)),
                 hud::update_damage_numbers.run_if(in_state(ir_core::AppState::World)),
-<<<<<<< HEAD
                 hud::update_minimap.run_if(in_state(ir_core::AppState::World)),
                 hud::update_buff_bar.run_if(in_state(ir_core::AppState::World)),
                 hud::tick_buff_timers.run_if(in_state(ir_core::AppState::World)),
@@ -173,9 +168,7 @@ impl Plugin for RenderingPlugin {
                 // Zone transition overlay
                 hud::spawn_zone_transition_overlay.run_if(in_state(ir_core::AppState::World)),
                 hud::update_zone_transition.run_if(in_state(ir_core::AppState::World)),
-=======
                 assign_scene_from_slot.run_if(in_state(ir_core::AppState::World)),
->>>>>>> origin/master
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::World)),
                 assign_enemy_mesh.run_if(in_state(ir_core::AppState::World)),
                 assign_pickup_mesh.run_if(in_state(ir_core::AppState::World)),
@@ -224,15 +217,12 @@ impl Plugin for RenderingPlugin {
                 hud::spawn_damage_numbers.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_damage_numbers.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::Dungeon)),
-<<<<<<< HEAD
                 hud::update_minimap.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_buff_bar.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::tick_buff_timers.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::spawn_level_up_popup.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_level_up_popups.run_if(in_state(ir_core::AppState::Dungeon)),
-=======
                 assign_scene_from_slot.run_if(in_state(ir_core::AppState::Dungeon)),
->>>>>>> origin/master
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::Dungeon)),
                 assign_enemy_mesh.run_if(in_state(ir_core::AppState::Dungeon)),
                 assign_pickup_mesh.run_if(in_state(ir_core::AppState::Dungeon)),
@@ -272,15 +262,12 @@ impl Plugin for RenderingPlugin {
             .add_systems(Update, (
                 hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::Playing)),
                 hud::update_damage_numbers.run_if(in_state(ir_core::AppState::Playing)),
-<<<<<<< HEAD
                 hud::update_minimap.run_if(in_state(ir_core::AppState::Playing)),
                 hud::update_buff_bar.run_if(in_state(ir_core::AppState::Playing)),
                 hud::tick_buff_timers.run_if(in_state(ir_core::AppState::Playing)),
                 hud::spawn_level_up_popup.run_if(in_state(ir_core::AppState::Playing)),
                 hud::update_level_up_popups.run_if(in_state(ir_core::AppState::Playing)),
-=======
                 assign_scene_from_slot.run_if(in_state(ir_core::AppState::Playing)),
->>>>>>> origin/master
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::Playing)),
                 assign_enemy_mesh.run_if(in_state(ir_core::AppState::Playing)),
                 assign_pickup_mesh.run_if(in_state(ir_core::AppState::Playing)),

@@ -68,7 +68,6 @@ impl ItemRarity {
         }
     }
 }
-<<<<<<< HEAD
 
 #[cfg(test)]
 mod tests {
@@ -138,5 +137,3 @@ mod tests {
         assert_eq!(a, c);
     }
 }
-=======
->>>>>>> origin/master
