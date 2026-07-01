@@ -40,6 +40,7 @@ pub struct EnemyBundle {
     pub team: Team,
     pub render_info: RenderInfo,
     pub room_entity: RoomEntity,
+    pub attack_cooldown: AttackCooldown,
 }
 
 impl EnemyBundle {
@@ -68,6 +69,7 @@ impl EnemyBundle {
             team: Team::Enemy,
             render_info: RenderInfo::default(),
             room_entity: RoomEntity,
+            attack_cooldown: AttackCooldown::default(),
         }
     }
 }

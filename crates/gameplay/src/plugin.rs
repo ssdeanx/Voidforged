@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use ir_core::*;
-use crate::{player, enemy, combat, pickup};
+use crate::{combat, enemy, pickup, player, collection};
 
 pub struct GameplayPlugin;
 
@@ -19,17 +19,23 @@ impl Plugin for GameplayPlugin {
             .add_systems(Update, (
                 enemy::enemy_ai,
                 enemy::apply_enemy_velocity,
+                enemy::enemy_melee_attack,
+                enemy::enemy_ranged_attack,
             ).run_if(in_state(AppState::Playing)))
 
             // Combat systems
             .add_systems(Update, (
                 combat::move_projectiles,
                 combat::projectile_hit,
+                combat::projectile_hit_player,
                 combat::apply_damage,
                 combat::handle_death,
             ).run_if(in_state(AppState::Playing)))
 
             // Pickup systems
-            .add_systems(Update, pickup::gem_magnet.run_if(in_state(AppState::Playing)));
+            .add_systems(Update, (
+                pickup::gem_magnet,
+                collection::collect_gems,
+            ).run_if(in_state(AppState::Playing)));
     }
 }

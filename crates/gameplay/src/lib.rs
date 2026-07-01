@@ -5,6 +5,7 @@ pub mod enemy;
 pub mod combat;
 pub mod projectile;
 pub mod pickup;
+pub mod collection;
 pub mod plugin;
 
 pub use plugin::GameplayPlugin;

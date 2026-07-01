@@ -278,3 +278,15 @@ pub struct Room;
 pub struct Lifetime {
     pub remaining: f32,
 }
+
+/// Per-enemy cooldown for attacks.
+#[derive(Component, Debug, Clone)]
+pub struct AttackCooldown {
+    pub timer: f32,
+}
+
+impl Default for AttackCooldown {
+    fn default() -> Self {
+        Self { timer: 0.0 }
+    }
+}
