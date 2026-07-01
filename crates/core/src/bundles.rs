@@ -1,20 +1,35 @@
+//! Convenience [`Bundle`]s for spawning complex entities with all required
+//! components at once.
+
 use bevy::prelude::*;
 use crate::components::*;
 
 /// Spawns a full player entity with all required components.
+///
+/// Attaches [`Player`], [`Health`], [`CombatStats`], [`Position`], [`Velocity`],
+/// [`Team`], [`RenderInfo`], and [`RoomEntity`] in one call.
 #[derive(Bundle)]
 pub struct PlayerBundle {
+    /// Player component — level, XP tracking.
     pub player: Player,
+    /// Health pool — current and max HP.
     pub health: Health,
+    /// Core combat stats — damage, speed, armour, etc.
     pub combat_stats: CombatStats,
+    /// 3D world position.
     pub position: Position,
+    /// 3D movement velocity.
     pub velocity: Velocity,
+    /// Faction allegiance (Player, Enemy, Neutral).
     pub team: Team,
+    /// Visual mesh and material handles.
     pub render_info: RenderInfo,
+    /// Room-scoping marker for cleanup on room exit.
     pub room_entity: RoomEntity,
 }
 
 impl PlayerBundle {
+    /// Creates a new player bundle at the given world position with default stats.
     pub fn new(position: Vec3) -> Self {
         Self {
             player: Player::default(),
@@ -29,21 +44,35 @@ impl PlayerBundle {
     }
 }
 
-/// Spawns an enemy entity.
+/// Spawns an enemy entity with its components.
+///
+/// Stats scale with tier: higher tier enemies deal more damage and have more HP.
 #[derive(Bundle)]
 pub struct EnemyBundle {
+    /// Enemy component — variant, tier, XP reward.
     pub enemy: Enemy,
+    /// Health pool — scales with tier.
     pub health: Health,
+    /// Combat stats — move speed, armour, etc.
     pub combat_stats: CombatStats,
+    /// 3D world position.
     pub position: Position,
+    /// 3D movement velocity.
     pub velocity: Velocity,
+    /// Faction allegiance (always Enemy for enemies).
     pub team: Team,
+    /// Visual mesh and material handles.
     pub render_info: RenderInfo,
+    /// Room-scoping marker for cleanup on room exit.
     pub room_entity: RoomEntity,
+    /// Per-enemy attack cooldown timer.
     pub attack_cooldown: AttackCooldown,
 }
 
 impl EnemyBundle {
+    /// Creates a new enemy bundle at the given position with variant-based base stats.
+    ///
+    /// Tier acts as a difficulty multiplier: HP, XP, and damage scale by `tier * 1.15`.
     pub fn new(variant: EnemyVariant, tier: u32, position: Vec3) -> Self {
         let (hp, xp, speed) = match &variant {
             EnemyVariant::Grunt => (30.0, 10, 3.5),
@@ -74,17 +103,23 @@ impl EnemyBundle {
     }
 }
 
-/// Spawns a projectile entity.
+/// Spawns a projectile entity with its components.
 #[derive(Bundle)]
 pub struct ProjectileBundle {
+    /// Projectile component — damage, speed, lifetime, owner.
     pub projectile: Projectile,
+    /// 3D world position.
     pub position: Position,
+    /// 3D movement velocity (direction * speed).
     pub velocity: Velocity,
+    /// Visual mesh and material handles.
     pub render_info: RenderInfo,
+    /// Room-scoping marker for cleanup on room exit.
     pub room_entity: RoomEntity,
 }
 
 impl ProjectileBundle {
+    /// Creates a new projectile bundle moving in the given direction.
     pub fn new(
         damage: f32,
         speed: f32,
@@ -110,17 +145,23 @@ impl ProjectileBundle {
     }
 }
 
-/// Spawns an experience gem pickup.
+/// Spawns an experience gem pickup on the ground.
 #[derive(Bundle)]
 pub struct ExperienceGemBundle {
+    /// Experience gem component — value and magnet speed.
     pub gem: ExperienceGem,
+    /// 3D world position.
     pub position: Position,
+    /// 3D movement velocity (for physics-based movement toward player).
     pub velocity: Velocity,
+    /// Visual mesh and material handles.
     pub render_info: RenderInfo,
+    /// Room-scoping marker for cleanup on room exit.
     pub room_entity: RoomEntity,
 }
 
 impl ExperienceGemBundle {
+    /// Creates a new experience gem bundle at the given position.
     pub fn new(value: u64, position: Vec3) -> Self {
         Self {
             gem: ExperienceGem {

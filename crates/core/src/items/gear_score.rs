@@ -1,5 +1,6 @@
 //! Gear score and item level system — determines item quality from stat weights.
-//! An item's ilvl = base_level + rarity_bonus + stat_weight_total.
+//!
+//! An item's ilvl = base_level + rarity_bonus + stat_weighted_total.
 //! Used for loot generation, comparison tooltips, and content scaling.
 
 use crate::items::*;
@@ -8,8 +9,11 @@ use crate::items::*;
 // Stat Weights — determines how much each stat contributes to item level
 // ============================================================================
 
-/// Weight of each stat type toward item level calculation.
-/// Higher weight = more ilvl contribution per point.
+/// Returns the weight of a stat type toward item level calculation.
+///
+/// Higher weight means each point of that stat contributes more to the
+/// item's final level. Rarer stats (CritChance, Lifesteal) have higher
+/// weights than common ones (MaxHealth, PickupRadius).
 pub fn stat_weight(stat: StatType) -> f32 {
     match stat {
         StatType::DamageBonus => 1.0,
@@ -31,8 +35,10 @@ pub fn stat_weight(stat: StatType) -> f32 {
 // Rarity Budget — stat budget multiplier per rarity tier
 // ============================================================================
 
-/// Returns the total stat budget for an item at a given rarity and level.
-/// Higher rarity = more total stats for the same ilvl.
+/// Returns the stat budget multiplier for a given rarity tier.
+///
+/// Higher rarities allow more total stats at the same item level,
+/// making rare items strictly stronger than common ones.
 pub fn rarity_budget(rarity: ItemRarity) -> f32 {
     match rarity {
         ItemRarity::Common => 1.0,
@@ -43,7 +49,9 @@ pub fn rarity_budget(rarity: ItemRarity) -> f32 {
     }
 }
 
-/// Base item level per equipment slot. Weapons have higher base.
+/// Returns the base item level for a given equipment slot.
+///
+/// Weapons and chest pieces have higher base levels than accessories.
 pub fn slot_base_ilvl(slot: EquipSlot) -> u32 {
     match slot {
         EquipSlot::MainHand => 5,
@@ -61,8 +69,9 @@ pub fn slot_base_ilvl(slot: EquipSlot) -> u32 {
 // Item Level Calculation
 // ============================================================================
 
-/// Calculates the item level (ilvl) of an ItemDef.
-/// ilvl = slot_base + floor(rarity_bonus + stat_weighted_total / 5)
+/// Calculates the item level (ilvl) of an item definition.
+///
+/// Formula: `slot_base + floor(rarity_bonus + stat_weighted_total / 5) + required_level / 2`
 pub fn calculate_item_level(def: &ItemDef) -> u32 {
     let base = def.slot.map_or(1, slot_base_ilvl);
     let rarity_mult = rarity_budget(def.rarity);
@@ -73,12 +82,17 @@ pub fn calculate_item_level(def: &ItemDef) -> u32 {
     base + from_stats as u32 + def.required_level / 2
 }
 
-/// Calculates gear score for an ItemDef — used for total power display.
+/// Calculates the gear score for an item definition.
+///
+/// Gear score = `calculate_item_level(def) * 2`.
+/// Used as a quick power-level comparison in UI tooltips.
 pub fn gear_score(def: &ItemDef) -> u32 {
     calculate_item_level(def) * 2
 }
 
-/// Rarity tier bonus to item level.
+/// Returns the item level bonus granted by a given rarity tier.
+///
+/// Common: 0, Uncommon: 3, Rare: 7, Epic: 12, Legendary: 20.
 pub fn rarity_ilvl_bonus(rarity: ItemRarity) -> u32 {
     match rarity {
         ItemRarity::Common => 0,
@@ -94,7 +108,10 @@ pub fn rarity_ilvl_bonus(rarity: ItemRarity) -> u32 {
 // ============================================================================
 
 /// Generates a loot table appropriate for enemies at a given power level.
-/// Higher level enemies drop higher ilvl items.
+///
+/// Returns a list of item definition IDs that can drop from enemies
+/// whose level falls in the given range. Higher level enemies
+/// have access to better loot tables.
 pub fn loot_table_for_level(level: u32) -> Vec<&'static str> {
     match level {
         0..=5 => vec!["iron_sword", "iron_dagger", "short_bow", "leather_helm", "leather_chest", "leather_boots", "copper_ring", "health_potion"],
@@ -108,14 +125,20 @@ pub fn loot_table_for_level(level: u32) -> Vec<&'static str> {
 // Stat Comparison — for tooltips and gear comparison
 // ============================================================================
 
-/// Compares two sets of stats and returns the net change.
+/// Represents the difference in one stat between two items for comparison UI.
 pub struct StatDiff {
+    /// The stat being compared.
     pub stat: StatType,
+    /// Value of the stat on the currently equipped item.
     pub old_value: f32,
+    /// Value of the stat on the prospective new item.
     pub new_value: f32,
 }
 
-/// Returns the net stat difference between two items.
+/// Compares two sets of stat modifiers and returns the net differences.
+///
+/// Only stats that differ by more than 0.01 are included in the result.
+/// Used by UI tooltips to show what changes when swapping equipment.
 pub fn compare_items(current: &[StatMod], upgraded: &[StatMod]) -> Vec<StatDiff> {
     let mut diffs = Vec::new();
     // Collect all unique stat types

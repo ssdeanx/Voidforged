@@ -5,32 +5,48 @@
 
 use bevy::prelude::*;
 use ir_core::*;
-use crate::classes::{warrior, paladin, rogue, hunter, mage};
+use crate::classes::{hunter, mage, paladin, rogue, warrior};
 
 // ============================================================================
 // Class Resource Component
 // ============================================================================
 
+/// Per-class resource bar component (Rage, Energy, Mana, Focus, Holy Power).
+///
+/// Each class has its own resource type with different max capacity and
+/// regeneration rates. Ability costs are deducted from this resource.
 #[derive(Component, Debug, Clone)]
 pub struct ClassResource {
+    /// Current resource amount.
     pub current: f32,
+    /// Maximum resource capacity.
     pub max: f32,
+    /// Resource regenerated per second.
     pub regen_rate: f32,
 }
 
 impl ClassResource {
+    /// Creates a new class resource starting at full capacity.
     pub fn new(max: f32, regen_rate: f32) -> Self {
         Self { current: max, max, regen_rate }
     }
+    /// Returns `true` if the resource has at least `amount` available.
     pub fn has(&self, amount: f32) -> bool { self.current >= amount }
+    /// Spends resource without checking — clamps to zero.
     pub fn spend(&mut self, amount: f32) { self.current = (self.current - amount).max(0.0); }
+    /// Returns the current fraction (0.0–1.0) of resource remaining.
     pub fn fraction(&self) -> f32 { if self.max > 0.0 { self.current / self.max } else { 0.0 } }
+    /// Returns `true` if enough resource is available for the given cost.
     pub fn can_afford(&self, amount: f32) -> bool { self.current >= amount }
+    /// Tries to spend `amount`; returns `true` and deducts on success.
     pub fn spend_resource(&mut self, amount: f32) -> bool {
         if self.current >= amount { self.current = (self.current - amount).max(0.0); true } else { false }
     }
 }
 
+/// Regenerates the player's class resource each frame over time.
+///
+/// Adds `regen_rate * delta_secs` to the resource, capped at `max`.
 pub fn class_resource_regen(time: Res<Time>, mut query: Query<&mut ClassResource, With<Player>>) {
     for mut resource in query.iter_mut() {
         resource.current = (resource.current + resource.regen_rate * time.delta_secs()).min(resource.max);
@@ -52,6 +68,10 @@ fn resource_cost(class: CharacterClass, slot: &str) -> f32 {
 
 // ── Primary Attack ───────────────────────────────────────────────────────
 
+/// Dispatches the player's primary attack based on their class.
+///
+/// Checks resource costs and routing to the appropriate class module
+/// (melee cleave for Warrior, righteous strike for Paladin, etc.).
 pub fn primary_attack(
     mut commands: Commands,
     input: Res<PlayerInput>,
@@ -93,6 +113,10 @@ pub fn primary_attack(
 
 // ── Secondary Attack ─────────────────────────────────────────────────────
 
+/// Dispatches the player's secondary attack based on their class.
+///
+/// Has an independent 1-second cooldown. Routes to shield block,
+/// holy light, poison blade, multi-shot, or frostbolt per class.
 pub fn secondary_attack(
     mut commands: Commands,
     time: Res<Time>,
@@ -126,6 +150,10 @@ pub fn secondary_attack(
 
 // ── Cast Ability ─────────────────────────────────────────────────────────
 
+/// Dispatches the player's cast (Q key) ability based on their class.
+///
+/// Has an independent 3-second cooldown. Routes to charge, consecration,
+/// vanish, trap, or arcane blast per class.
 pub fn cast_ability(
     mut commands: Commands,
     time: Res<Time>,
@@ -159,6 +187,11 @@ pub fn cast_ability(
 
 // ── Dash Ability ─────────────────────────────────────────────────────────
 
+/// Handles the player's dash (Shift key) — grants brief invulnerability.
+///
+/// Applies a burst of velocity in the movement direction (or toward cursor
+/// if no direction is pressed). During the dash the player is invulnerable
+/// for 0.2 seconds. Hunter's dash reverses direction (disengage).
 pub fn dash_ability(
     mut commands: Commands,
     time: Res<Time>,

@@ -1,0 +1,89 @@
+// ──────────────────────────────────────────────────────────────────
+// Asset Pipeline Config
+// ──────────────────────────────────────────────────────────────────
+// Edit this file to point GLTF/GLB model paths to your Blender exports.
+// Paths are relative to the `assets/` directory.
+//
+// When a model path is set, the loader queues `AssetServer::load(path)`.
+// Use `#Scene0` suffix to target the default scene within a GLB.
+//
+// Animation paths use the `#AnimationN` fragment to target a specific
+// animation clip within the file.
+//
+// When enabled=true and models load successfully, the renderer spawns
+// SceneRoot(handle) instead of placeholder colored quads.  When
+// enabled=false or no models are configured, the placeholder system
+// is used as before — drop-in compatible.
+// ──────────────────────────────────────────────────────────────────
+AssetPipelineConfig(
+    // ── Character models ──────────────────────────────────────────
+    // Keyed by class name (Warrior, Paladin, Rogue, Hunter, Mage).
+    // Value is the GLTF path relative to assets/.
+    characters: {
+        "Warrior": "models/warrior.glb",
+        "Paladin": "models/paladin.glb",
+        "Rogue": "models/rogue.glb",
+        "Hunter": "models/hunter.glb",
+        "Mage": "models/mage.glb",
+    },
+
+    // ── Enemy models ──────────────────────────────────────────────
+    // Keyed by enemy variant (Grunt, Ranged, Charger, Elite, Boss).
+    enemies: {
+        "Grunt": "models/enemies/grunt.glb",
+        "Ranged": "models/enemies/ranged.glb",
+        "Charger": "models/enemies/charger.glb",
+        "Elite": "models/enemies/elite.glb",
+        "Boss": "models/enemies/boss.glb",
+    },
+
+    // ── Weapon/projectile models ──────────────────────────────────
+    // Keyed by WeaponKind string.
+    weapons: {
+        "Dagger": "models/weapons/dagger.glb",
+        "Sword": "models/weapons/sword.glb",
+        "Bow": "models/weapons/bow.glb",
+        "Staff": "models/weapons/staff.glb",
+        "Aura": "models/weapons/aura.glb",
+        "Whip": "models/weapons/whip.glb",
+        "MagicMissile": "models/weapons/magic_missile.glb",
+    },
+
+    // ── Pickup models ─────────────────────────────────────────────
+    pickups: {
+        "Health": "models/pickups/health.glb",
+        "Gold": "models/pickups/gold.glb",
+        "TemporaryBoost": "models/pickups/temp_boost.glb",
+    },
+
+    // ── Environment models ────────────────────────────────────────
+    // Keyed by name; used for decorative / terrain objects.
+    environment: {},
+
+    // ── Animation clips ───────────────────────────────────────────
+    // Paths with `#AnimationN` fragment select a specific animation.
+    // Keyed by entity name or class/weapon name.
+    animations: AnimationConfig(
+        idle: {
+            "Warrior": "models/warrior.glb#Animation0",
+            "Mage": "models/mage.glb#Animation0",
+        },
+        run: {
+            "Warrior": "models/warrior.glb#Animation1",
+            "Mage": "models/mage.glb#Animation1",
+        },
+        attack: {
+            "Sword": "models/weapons/sword.glb#Animation0",
+        },
+        hit: {
+            "default": "models/shared/hit.glb#Animation0",
+        },
+    ),
+
+    // ── Fallback model when a specific character/enemy has no entry ─
+    fallback_model: Some("models/fallback.glb"),
+
+    // ── Master toggle ──────────────────────────────────────────────
+    // Set false to keep using placeholder colored quads for all entities.
+    enabled: true,
+)

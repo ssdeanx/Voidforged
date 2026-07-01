@@ -141,9 +141,14 @@ pub fn projectile_hit_player(
 // stagger/hit-stun, knockback, and hit-stop
 // ============================================================================
 
+/// Damage reduction applied by shields and defensive buffs.
+///
+/// Multiplier applied after armor in the damage pipeline.
+/// A value of `0.4` means 40% of incoming damage is negated.
 #[derive(Component, Clone)]
 pub struct DamageReduction {
-    pub pct: f32, // 0.0–1.0 damage reduction multiplier
+    /// Damage reduction multiplier (0.0–1.0). 1.0 = full immunity.
+    pub pct: f32,
 }
 
 /// Applies damage events to health — respects armor, dodge, crit, lifesteal, buffs.
@@ -568,6 +573,8 @@ pub fn apply_stun_movement_block(
 // ============================================================================
 
 /// Sprint toggle state.
+///
+/// `true` when the player is currently sprinting (consuming stamina).
 #[derive(Component, Default)]
 pub struct Sprinting(pub bool);
 

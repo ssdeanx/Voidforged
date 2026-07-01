@@ -53,8 +53,10 @@ pub fn secondary_holy_light(
     commands.entity(player).insert(HolyLight { heal_pct: 0.3 });
 }
 
+/// Heal-over-time marker for the Paladin's Holy Light ability.
 #[derive(Component)]
 pub struct HolyLight {
+    /// Percentage of max HP to heal (0.0–1.0).
     pub heal_pct: f32,
 }
 
@@ -79,11 +81,15 @@ pub fn apply_holy_light(
 /// A ground-targeted AoE field that damages enemies inside.
 #[derive(Component)]
 pub struct ConsecrationField {
+    /// Remaining lifetime in seconds.
     pub lifetime: f32,
+    /// Time until next damage tick.
     pub tick_timer: f32,
+    /// Damage dealt per tick.
     pub damage: f32,
 }
 
+/// Spawns a consecration AoE field at the paladin's position.
 pub fn cast_consecration(
     commands: &mut Commands,
     transform: &Transform,
@@ -161,6 +167,10 @@ pub fn paladin_holy_power_on_hit(
 
 // ── Dash: Divine Steed ────────────────────────────────────────────────────
 
+/// Dash ability for Paladin: Divine Steed (standard dodge).
+///
+/// This is a placeholder — the dash behavior is handled by the
+/// generic `dash_ability` system in `abilities.rs`.
 pub fn dash_divine_steed() {
     // Standard dodge — handled by dash_ability system
 }

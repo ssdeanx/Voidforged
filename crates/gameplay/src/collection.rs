@@ -2,6 +2,10 @@ use bevy::prelude::*;
 use ir_core::*;
 
 /// Detects when XP gems reach the player and awards the XP.
+///
+/// Checks distance between each `ExperienceGem` and the player each frame.
+/// When a gem is within pickup range (1.5 units) it sends an
+/// `ExperienceGainEvent`, a `PickupEvent`, and despawns the gem entity.
 pub fn collect_gems(
     mut commands: Commands,
     player_query: Query<(Entity, &Transform), With<Player>>,

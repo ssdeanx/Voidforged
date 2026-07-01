@@ -3,6 +3,9 @@
 use bevy::prelude::*;
 use ir_core::*;
 
+use crate::asset_pipeline::animation::AnimationStateMachine;
+use crate::asset_pipeline::loader::slot_for_class;
+
 /// Spawns the ground grid, player, and environment — everything for a new run.
 pub fn spawn_game_world(
     mut commands: Commands,
@@ -64,7 +67,7 @@ pub fn spawn_game_world(
         ));
     }
 
-    // ── Player ───────────────────────────────────────────────────────
+    // ── Player (with model slot + animation state machine) ──────────
     commands.spawn((
         Mesh3d(assets.player_mesh.clone()),
         MeshMaterial3d(assets.player_material.clone()),
@@ -82,10 +85,18 @@ pub fn spawn_game_world(
         Equipment::default(),
         Team::Player,
         RoomEntity,
+        // Asset pipeline integration — enables GLTF model replacement
+        slot_for_class(&CharacterClass::Warrior),
+        AnimationStateMachine::default(),
     ));
 }
 
 /// Spawns the player entity at world origin with class data from character creation.
+///
+/// Tags the entity with `ModelSlot` (for GLTF scene replacement) and
+/// `AnimationStateMachine` (for state-driven animation). When the asset
+/// pipeline has the matching 3D model loaded, the placeholder quad is
+/// replaced automatically by `assign_scene_from_slot`.
 pub fn spawn_player(
     mut commands: Commands,
     assets: Res<GameAssets>,
@@ -117,10 +128,13 @@ pub fn spawn_player(
         weapon,
         Velocity(Vec3::ZERO),
         DashCooldown::default(),
-        Equipment::default(),
-        Inventory::new(20),
         Team::Player,
-    ));
+        // Asset pipeline integration
+        slot_for_class(&class),
+        AnimationStateMachine::default(),
+    ))
+    .insert(Equipment::default())
+    .insert(Inventory::new(20));
 }
 
 /// Despawns all RoomEntity-marked entities — used on GameOver and state transitions.
