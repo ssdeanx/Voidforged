@@ -1,25 +1,23 @@
-# Isometric Roguelite — Design Document
+# Voidforged — Design Document
 
 ## Vision
-A 3D isometric action roguelite blending **Hades'** skill-based combat,
-dodge-focused gameplay, and deep meta-progression with **Vampire Survivors'**
-wave-clearing density, built on a modular architecture ready for MMO-style
-multiplayer.
+A 3D isometric action RPG blending **Hades'** skill-based combat, dodge-focused gameplay, and deep class-based meta-progression with an **MMO open world** and procedurally generated dungeons for solo and group play.
 
 **Key pillars:**
-1. **Skill-based combat** — mouse aiming, manual attacks, dodge rolling with i-frames
-2. **Hades weapon system** — multiple aspects, attack patterns, upgrades mid-run
-3. **Meta-progression** — permanent upgrades between runs (dark essence)
-4. **Multiplayer** — co-op or competitive, client-server architecture
+1. **Class-based combat** — 5 classes (Warrior, Paladin, Rogue, Hunter, Mage), each with unique abilities, resource system, and playstyle
+2. **Hades-style feel** — mouse aiming, hold-to-attack, dodge rolling with i-frames, dash attacks
+3. **MMO open world** — shared persistent world with zones, dungeons, world events
+4. **Procedural dungeons** — solo and group instances with advanced boss mechanics
+5. **Deep progression** — talents, gear, weapon evolution, permanent meta-upgrades
 
 ## Tech Stack
 - **Engine:** Bevy 0.15 (ECS, PBR 3D rendering, plugin system)
-- **Language:** Rust (2024 edition)
+- **Language:** Rust 2021 edition (Cargo workspace, 11 crates)
 - **Particles:** bevy_hanabi 0.15 (GPU particles)
 - **Shaders:** Custom WGSL (glow/telegraph material)
-- **Physics:** Manual distance checks (future: Rapier)
-- **Networking:** bevy_replicon / lightyear (stubbed)
-- **Persistence:** serde-based save files (future: SQLite via sqlx)
+- **Physics:** Manual distance checks (future: state replication)
+- **Networking:** Custom protocol (stubbed, future: bevy_replicon / lightyear)
+- **Persistence:** bincode serialization (save to ~/.isometric_roguelite/)
 
 ### VFX Pipeline
 ```
@@ -29,15 +27,17 @@ Gameplay systems → SpawnImpactEvent → Rendering system → bevy_hanabi Effec
 ```
 
 ## Architecture (Workspace Crates)
-
 ```
-isometric-roguelite/
+Voidforged/
 ├── crates/
 │   ├── core/           # Components, resources, events, bundles
 │   ├── rendering/      # Camera, lighting, assets, HUD, GPU particles, shaders
 │   ├── gameplay/       # Player control, enemy AI, combat, projectiles, pickups
 │   ├── procedural/     # Wave spawning, loot tables
 │   ├── progression/    # XP/leveling, meta-progression stubs
+│   ├── world/          # Open world map, zones, dungeon entrances
+│   ├── dungeon/        # Procedural room generation, encounters
+│   ├── save/           # Persistent save/load
 │   ├── network/        # Multiplayer protocol stubs
 │   ├── server/         # Headless server stub
 │   └── client/         # Main binary — wires all plugins
@@ -46,15 +46,14 @@ isometric-roguelite/
 ## Core Systems (ECS)
 
 ### States
-- `AppState` — Loading → MainMenu → Playing → Paused → GameOver
-- `RunState` — Entering → Exploring → Combat → RoomTransition → Boss → Victory/Defeat
+- `AppState` — Loading → MainMenu → World (open world) → Dungeon (instanced) → Paused → GameOver
 
 ### Key Components
 
 **Player:**
 - `Player` — run-local stats (level, XP)
 - `Health` — current/max/i-frames
-- `CombatStats` — damage, speed, armor, crit, dodge, lifesteal, dash reduction, etc.
+- `CombatStats` — 14 fields (damage, speed, armor, crit, dodge, lifesteal, etc.)
 - `Weapon` — kind, damage, attack speed, evolution stage
 - `DashCooldown` — dodge roll state machine
 - `Equipment` — 4 gear slots with stat modifiers
@@ -71,11 +70,7 @@ isometric-roguelite/
 - `DamageEvent` — target, source, amount, crit, type
 - `DeathEvent` — entity, killer, enemy variant
 - `DamageNumberEvent` — floating text trigger
-
-**VFX:**
-- `EffectsLibrary` (resource) — pre-built particle handles
 - `SpawnImpactEvent` — cross-crate VFX trigger
-- `ScreenShake` (resource) — camera trauma with decay
 
 ### Key Resources
 - `PlayerInput` — movement direction, aim direction, action buttons
@@ -84,52 +79,87 @@ isometric-roguelite/
 - `MetaProgression` — cross-run persistence
 - `CursorWorldPos` — mouse position projected into 3D
 - `GameAssets` — handles to loaded meshes and materials
+- `ScreenShake` — camera trauma with decay
+- `DungeonState` — current dungeon instance tracking
 
-## Gameplay Loop
+## Classes (PLANNED)
 
-1. **Main menu** → press Enter to start
-2. **Waves** of enemies spawn procedurally with scaling difficulty
-3. **Skill-based combat** — aim with mouse, hold-click to attack, dodge telegraphed attacks
-4. **Defeat enemies** → collect XP gems, health pickups, gold
-5. **Level up** → automatic stat bonuses (damage +2, max HP +10 per level)
-6. **Clear wave** → next wave with harder enemies
-7. **Boss wave** every 10 waves
-8. **Death** → GameOver screen → Enter to restart
+### Warrior
+- **Resource:** Rage (generated on damage taken/dealt, decays out of combat)
+- **Primary:** Melee cleave
+- **Secondary:** Shield block (temporary damage reduction)
+- **Cast:** Charge (close gap, stun)
+- **Dash:** Combat roll (i-frames)
+- **Specialty:** Highest armor, taunt, whirlwind AoE
+
+### Paladin
+- **Resource:** Holy Power (generated by attacks, spent on heals)
+- **Primary:** Righteous melee strike
+- **Secondary:** Holy light (self heal)
+- **Cast:** Consecration (AoE holy damage field)
+- **Dash:** Divine steed (fast mount dash)
+- **Specialty:** Self-healing, party support, undead bonus damage
+
+### Rogue
+- **Resource:** Energy (fast regeneration, capped pool)
+- **Primary:** Backstab (bonus damage from behind)
+- **Secondary:** Poison blade (DoT application)
+- **Cast:** Vanish (stealth, next attack crit)
+- **Dash:** Shadowstep (teleport behind target)
+- **Specialty:** Stealth mechanics, highest single-target DPS, evasion
+
+### Hunter
+- **Resource:** Focus (medium regen, spent on abilities)
+- **Primary:** Aimed shot (long range, high damage)
+- **Secondary:** Multi-shot (AoE cone)
+- **Cast:** Trap (root/slow field)
+- **Dash:** Disengage (leap backward)
+- **Specialty:** Pet companion, kiting, range advantage
+
+### Mage
+- **Resource:** Mana (high pool, slow regen, mana potions)
+- **Primary:** Fireball (AoE splash)
+- **Secondary:** Frostbolt (slow + damage)
+- **Cast:** Arcane blast (high single-target)
+- **Dash:** Blink (short teleport)
+- **Specialty:** Highest AoE damage, elemental affinities, polymorph CC
 
 ## Controls
 
 | Input | Action |
 |-------|--------|
-| WASD / Arrows | Move (smooth acceleration) |
-| Mouse | Aim |
-| Left click (hold) | Primary attack on cooldown |
-| Right click (hold) | Secondary spread attack (0.8s CD) |
-| Q (press) | Cast piercing projectile (3s CD) |
-| Shift (press) | Dash / dodge roll (1s CD, 0.3s i-frames) |
-| Escape (press) | Pause |
-| Enter / Space | Confirm menus |
+| WASD / Arrows | Move (smooth acceleration, camera-relative) |
+| Mouse | Aim (cursor-to-world raycast on ground plane) |
+| Left click (hold) | Primary attack |
+| Right click (hold) | Secondary attack (spread/block/special) |
+| Q | Cast ability |
+| Shift | Dash / dodge roll |
+| F | Interact (enter dungeons, talk) |
+| Escape | Pause |
 
 ## Enemy Types
 
-| Variant | Behavior | HP | Speed | Attack | Telegraph |
-|---------|----------|----|-------|--------|-----------|
+| Variant | Behavior | Base HP | Speed | Attack | Telegraph |
+|---------|----------|---------|-------|--------|-----------|
 | Grunt | Simple chase | 30 | 3.5 | Melee (8 dmg) | 0.3s |
 | Ranged | Keep distance, strafe | 20 | 2.5 | Projectile (8 dmg) | 0.4s |
 | Charger | Fast charge, wobble | 50 | 7.0 | Charge + melee (15) | 0.5s |
 | Elite | Steady advance | 200 | 3.0 | Melee (20 dmg) | 0.3s |
 | Boss | Slow relentless | 1000+ | 2.0 | AoE melee (40) | 0.6s |
 
-## Weapon System (Hades-style)
+## Dungeon Boss Mechanics (PLANNED)
 
-Currently one weapon (MagicMissile) with basic stats. Designed for expansion:
+Boss fights designed with telegraphing, phases, and group coordination:
 
-| Weapon | Primary | Special | Cast |
-|--------|---------|---------|------|
-| MagicMissile | Aimed shot | Spread (3) | Pierce |
+| Boss | Phase 1 | Phase 2 (≤50%) | Group Mechanic |
+|------|---------|-----------------|----------------|
+| Rat King | Summon adds, tail sweep | Poison pools, enrage | Tank swap on enrage |
+| Sun King | Fire orb volley, teleport | Solar beam, adds | Spread mechanic, cleanse |
+| Hollow Tree | Root grab, spore volley | AoE pulse, healing | Line-of-sight, interrupt |
 
 ## Milestones
 
-- [x] Workspace scaffold (8 crates)
+- [x] Workspace scaffold (11 crates)
 - [x] Core ECS types (components, resources, events, bundles)
 - [x] Isometric 3D camera + lighting
 - [x] Mouse-based aiming (raycast from camera)
@@ -143,13 +173,20 @@ Currently one weapon (MagicMissile) with basic stats. Designed for expansion:
 - [x] Loot: XP gems, health pickups, gold drops
 - [x] Level-up system with stat bonuses
 - [x] Equipment system (4 slots, stat modifiers)
-- [x] HUD: health, XP, wave, level, dash cooldown
+- [x] HUD: health, XP, wave, level, dash cooldown, gold, zone
 - [x] GPU particles (bevy_hanabi) — impacts, glows, trails
 - [x] Custom shader (GlowMaterial) — emissive pulsing
 - [x] Screen shake + damage numbers
-- [ ] Meta-progression UI (between runs)
-- [ ] Weapon evolution system
-- [ ] Procedural room generation
-- [ ] Sound effects + music
-- [ ] 3D models (player, enemies, environment)
-- [ ] Multiplayer (networking + dedicated server)
+- [x] Open world with 3 zones and dungeon entrances
+- [x] Procedural dungeon generation (3×3 room grid)
+- [x] Save/load (bincode autosave/autoload)
+- [ ] **Class system** — 5 classes with unique abilities/resources
+- [ ] **Meta-progression UI** — dark essence upgrade tree
+- [ ] **Weapon evolution system** — aspect unlocks, upgrade paths
+- [ ] **Talents** — 15+ node trees per class (3 branches)
+- [ ] **Multiplayer** — open world + group dungeons
+- [ ] **Group dungeons** — 2-4 player scaling, boss mechanics
+- [ ] **Advanced boss mechanics** — phases, telegraph patterns, enrage
+- [ ] **More zones** — Swamp, Tundra, end-game zones
+- [ ] **Sound effects + music**
+- [ ] **3D character models** or animated sprites

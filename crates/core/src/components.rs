@@ -1,4 +1,228 @@
 use bevy::prelude::*;
+use serde::{Deserialize, Serialize};
+
+// ============================================================================
+// Character Class
+// ============================================================================
+
+/// The five playable classes. Each has unique stats, abilities, and playstyle.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum CharacterClass {
+    Warrior,
+    Paladin,
+    Rogue,
+    Hunter,
+    Mage,
+}
+
+impl CharacterClass {
+    pub fn all() -> Vec<Self> {
+        vec![Self::Warrior, Self::Paladin, Self::Rogue, Self::Hunter, Self::Mage]
+    }
+
+    pub fn display_name(&self) -> &str {
+        match self {
+            Self::Warrior => "Warrior",
+            Self::Paladin => "Paladin",
+            Self::Rogue => "Rogue",
+            Self::Hunter => "Hunter",
+            Self::Mage => "Mage",
+        }
+    }
+
+    pub fn resource_name(&self) -> &str {
+        match self {
+            Self::Warrior => "Rage",
+            Self::Paladin => "Holy Power",
+            Self::Rogue => "Energy",
+            Self::Hunter => "Focus",
+            Self::Mage => "Mana",
+        }
+    }
+
+    pub fn description(&self) -> &str {
+        match self {
+            Self::Warrior => "A battle-hardened melee fighter who uses Rage to fuel devastating attacks. Excels at close quarters with high armor and area damage.",
+            Self::Paladin => "A holy warrior who channels Holy Power into righteous melee strikes and healing light. Durable with strong self-sustain.",
+            Self::Rogue => "A shadowy operative who spends Energy on quick, precise strikes. Highest single-target damage with stealth and poison mechanics.",
+            Self::Hunter => "A wilderness expert who uses Focus for powerful ranged attacks. Pairs deadly accuracy with traps and mobility.",
+            Self::Mage => "A master of arcane arts who wields Mana for devastating elemental magic. Unmatched area damage with teleportation and crowd control.",
+        }
+    }
+
+    pub fn base_max_hp(&self) -> f32 {
+        match self {
+            Self::Warrior => 160.0,
+            Self::Paladin => 140.0,
+            Self::Rogue => 100.0,
+            Self::Hunter => 110.0,
+            Self::Mage => 90.0,
+        }
+    }
+
+    pub fn base_stats(&self) -> CombatStats {
+        match self {
+            Self::Warrior => CombatStats {
+                move_speed: 5.0,
+                damage_bonus: 5.0,
+                armor: 15.0,
+                dodge_chance: 0.05,
+                crit_chance: 0.10,
+                crit_multiplier: 2.0,
+                pickup_radius: 2.0,
+                ..Default::default()
+            },
+            Self::Paladin => CombatStats {
+                move_speed: 4.8,
+                damage_bonus: 4.0,
+                armor: 12.0,
+                dodge_chance: 0.03,
+                crit_chance: 0.08,
+                crit_multiplier: 1.8,
+                lifesteal: 0.05,
+                pickup_radius: 2.0,
+                ..Default::default()
+            },
+            Self::Rogue => CombatStats {
+                move_speed: 6.5,
+                damage_bonus: 3.0,
+                armor: 4.0,
+                dodge_chance: 0.20,
+                crit_chance: 0.15,
+                crit_multiplier: 2.5,
+                pickup_radius: 3.0,
+                ..Default::default()
+            },
+            Self::Hunter => CombatStats {
+                move_speed: 5.5,
+                damage_bonus: 6.0,
+                armor: 6.0,
+                dodge_chance: 0.10,
+                crit_chance: 0.12,
+                crit_multiplier: 2.2,
+                pickup_radius: 2.5,
+                ..Default::default()
+            },
+            Self::Mage => CombatStats {
+                move_speed: 4.5,
+                damage_bonus: 8.0,
+                armor: 2.0,
+                dodge_chance: 0.05,
+                crit_chance: 0.10,
+                crit_multiplier: 2.0,
+                pickup_radius: 2.0,
+                ..Default::default()
+            },
+        }
+    }
+
+    pub fn starting_weapon(&self) -> Weapon {
+        match self {
+            Self::Warrior => Weapon::new(WeaponKind::Sword, 14.0, 1.0, 3.5),
+            Self::Paladin => Weapon::new(WeaponKind::Sword, 12.0, 0.9, 3.5),
+            Self::Rogue => Weapon::new(WeaponKind::Dagger, 8.0, 2.0, 2.5),
+            Self::Hunter => Weapon::new(WeaponKind::Bow, 15.0, 1.2, 25.0),
+            Self::Mage => Weapon::new(WeaponKind::Staff, 18.0, 0.8, 20.0),
+        }
+    }
+
+    /// Which ability fires on primary attack (LMB hold)
+    pub fn primary_ability(&self) -> ClassAbilityId {
+        match self {
+            Self::Warrior => ClassAbilityId::MeleeCleave,
+            Self::Paladin => ClassAbilityId::RighteousStrike,
+            Self::Rogue => ClassAbilityId::Backstab,
+            Self::Hunter => ClassAbilityId::AimedShot,
+            Self::Mage => ClassAbilityId::Fireball,
+        }
+    }
+    /// Which ability fires on secondary attack (RMB)
+    pub fn secondary_ability(&self) -> ClassAbilityId {
+        match self {
+            Self::Warrior => ClassAbilityId::ShieldBlock,
+            Self::Paladin => ClassAbilityId::HolyLight,
+            Self::Rogue => ClassAbilityId::PoisonBlade,
+            Self::Hunter => ClassAbilityId::MultiShot,
+            Self::Mage => ClassAbilityId::Frostbolt,
+        }
+    }
+    /// Which ability fires on cast (Q)
+    pub fn cast_ability(&self) -> ClassAbilityId {
+        match self {
+            Self::Warrior => ClassAbilityId::Charge,
+            Self::Paladin => ClassAbilityId::Consecration,
+            Self::Rogue => ClassAbilityId::Vanish,
+            Self::Hunter => ClassAbilityId::Trap,
+            Self::Mage => ClassAbilityId::ArcaneBlast,
+        }
+    }
+    /// Which ability triggers on dash
+    pub fn dash_ability(&self) -> ClassAbilityId {
+        match self {
+            Self::Warrior => ClassAbilityId::CombatRoll,
+            Self::Paladin => ClassAbilityId::DivineSteed,
+            Self::Rogue => ClassAbilityId::Shadowstep,
+            Self::Hunter => ClassAbilityId::Disengage,
+            Self::Mage => ClassAbilityId::Blink,
+        }
+    }
+}
+
+impl Default for CharacterClass {
+    fn default() -> Self { Self::Warrior }
+}
+
+impl std::str::FromStr for CharacterClass {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "Warrior" => Ok(Self::Warrior),
+            "Paladin" => Ok(Self::Paladin),
+            "Rogue" => Ok(Self::Rogue),
+            "Hunter" => Ok(Self::Hunter),
+            "Mage" => Ok(Self::Mage),
+            _ => Err(format!("Unknown class: {s}")),
+        }
+    }
+}
+
+/// Identifiers for every class ability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassAbilityId {
+    // Warrior
+    MeleeCleave,
+    ShieldBlock,
+    Charge,
+    CombatRoll,
+    // Paladin
+    RighteousStrike,
+    HolyLight,
+    Consecration,
+    DivineSteed,
+    // Rogue
+    Backstab,
+    PoisonBlade,
+    Vanish,
+    Shadowstep,
+    // Hunter
+    AimedShot,
+    MultiShot,
+    Trap,
+    Disengage,
+    // Mage
+    Fireball,
+    Frostbolt,
+    ArcaneBlast,
+    Blink,
+}
+
+/// Component attached to the player — holds their class identity.
+#[derive(Component, Debug, Clone)]
+pub struct PlayerClass(pub CharacterClass);
+
+/// Player's chosen name (from character creation).
+#[derive(Component, Debug, Clone)]
+pub struct PlayerName(pub String);
 
 // ============================================================================
 // Tag Components
@@ -341,13 +565,37 @@ pub struct Lifetime {
 #[derive(Component, Debug, Clone)]
 pub struct AttackCooldown {
     pub timer: f32,
-    pub windup: f32,  // > 0 means telegraphing, counts down before attack lands
+    pub windup: f32,
 }
 
 impl Default for AttackCooldown {
     fn default() -> Self {
         Self { timer: 0.0, windup: 0.0 }
     }
+}
+
+// ============================================================================
+// Stamina
+// ============================================================================
+
+/// Stamina resource for sprinting and dodging.
+#[derive(Component, Debug, Clone)]
+pub struct Stamina {
+    pub current: f32,
+    pub max: f32,
+    pub regen_rate: f32,
+}
+
+impl Default for Stamina {
+    fn default() -> Self {
+        Self { current: 100.0, max: 100.0, regen_rate: 15.0 }
+    }
+}
+
+impl Stamina {
+    pub fn has(&self, amount: f32) -> bool { self.current >= amount }
+    pub fn spend(&mut self, amount: f32) { self.current = (self.current - amount).max(0.0); }
+    pub fn fraction(&self) -> f32 { self.current / self.max }
 }
 
 /// Dash cooldown for player dodge roll.

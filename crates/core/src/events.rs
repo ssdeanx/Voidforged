@@ -110,3 +110,44 @@ pub struct SpawnImpactEvent {
     pub position: Vec3,
     pub color: Option<Vec4>,
 }
+
+// ============================================================================
+// Player Death Events
+// ============================================================================
+
+/// Fired when the player dies in any context.
+#[derive(Event, Debug, Clone)]
+pub struct PlayerDeathEvent {
+    pub player: Entity,
+    pub killer: Option<Entity>,
+    pub position: Vec3,
+    pub in_dungeon: bool,
+}
+
+/// Fired when a dungeon run ends (death or clear).
+#[derive(Event, Debug, Clone)]
+pub struct DungeonEndEvent {
+    pub cleared: bool,
+    pub kills: u32,
+    pub wave_reached: u32,
+    pub gold_collected: u64,
+    pub xp_earned: u64,
+    pub run_time: f32,
+}
+
+// ============================================================================
+// Equipment Events
+// ============================================================================
+
+/// Fired when the player wants to equip an item from inventory.
+#[derive(Event, Debug, Clone)]
+pub struct EquipItemEvent {
+    pub inventory_slot: usize,
+    pub equip_slot: crate::items::EquipSlot,
+}
+
+/// Fired when the player wants to unequip an item.
+#[derive(Event, Debug, Clone)]
+pub struct UnequipItemEvent {
+    pub equip_slot: crate::items::EquipSlot,
+}

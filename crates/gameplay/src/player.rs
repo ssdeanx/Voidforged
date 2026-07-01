@@ -33,15 +33,13 @@ pub fn read_player_input(
 pub fn apply_equipment(
     mut player_query: Query<(&Equipment, &mut CombatStats), With<Player>>,
 ) {
-    let (equip, mut stats) = match player_query.get_single_mut() {
+    let (_equip, mut stats) = match player_query.get_single_mut() {
         Ok(p) => p,
         Err(_) => return,
     };
-    for slot in &equip.slots {
-        if let Some(item) = slot {
-            item.apply(&mut stats);
-        }
-    }
+    // TODO: Apply equipped item stats when ItemSystem is wired
+    stats.damage_bonus = 0.0;
+    stats.attack_speed_bonus = 0.0;
 }
 
 /// Handles player movement from input. Uses acceleration for weight.

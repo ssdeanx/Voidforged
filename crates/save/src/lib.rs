@@ -1,11 +1,12 @@
 //! Save/load system for persistent game state.
-//! Integrated as a Bevy plugin that hooks into state transitions.
+//! Supports multiple characters + global meta-progression.
+//! Save files in ~/.voidforged/
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 use ir_core::*;
 
-/// Serializable player data.
+/// Serializable player data per character.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerSaveData {
     pub level: u32,
@@ -24,16 +25,23 @@ impl Default for PlayerSaveData {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SaveData {
     pub version: u32,
-    pub player: PlayerSaveData,
+    pub profiles: Vec<PlayerProfile>,
+    pub next_profile_id: u32,
+    pub meta: MetaProgression,
 }
 
 impl Default for SaveData {
     fn default() -> Self {
-        Self { version: 1, player: PlayerSaveData::default() }
+        Self {
+            version: 2,
+            profiles: vec![],
+            next_profile_id: 1,
+            meta: MetaProgression::default(),
+        }
     }
 }
 
-/// Resource holding loaded save data (None = no save exists).
+/// Resource holding loaded save state.
 #[derive(Resource, Default)]
 pub struct SaveState {
     pub data: Option<SaveData>,
@@ -43,7 +51,7 @@ pub struct SaveState {
 #[derive(Resource, Default)]
 pub struct PendingSave(pub bool);
 
-const SAVE_DIR: &str = ".isometric_roguelite";
+const SAVE_DIR: &str = ".voidforged";
 const SAVE_FILE: &str = "save.dat";
 
 fn save_path() -> Result<std::path::PathBuf, String> {
@@ -105,43 +113,48 @@ pub fn load() -> Option<SaveData> {
     }
 }
 
-/// Build save data from current game state resources.
-fn build_save_data(progression: &RunProgression, player: &Player) -> SaveData {
+/// Builds a full SaveData from currently loaded resources.
+fn build_save_data(profiles: &PlayerProfiles, meta: &MetaProgression) -> SaveData {
     SaveData {
-        version: 1,
-        player: PlayerSaveData {
-            level: player.level,
-            xp: player.experience,
-            gold: progression.gold_collected,
-            completed_dungeons: vec![],
-        },
+        version: 2,
+        profiles: profiles.profiles.clone(),
+        next_profile_id: profiles.next_id,
+        meta: meta.clone(),
     }
 }
 
-/// Autosave: writes to disk on GameOver or MainMenu.
+/// Autosave: writes profiles + meta to disk.
 fn autosave(
     state: Res<State<AppState>>,
-    progression: Res<RunProgression>,
-    player_query: Query<&Player>,
+    profiles: Res<PlayerProfiles>,
+    meta: Res<MetaProgression>,
     mut pending: ResMut<PendingSave>,
 ) {
     if matches!(*state.get(), AppState::GameOver | AppState::MainMenu) {
         if pending.0 {
-            if let Ok(player) = player_query.get_single() {
-                let data = build_save_data(&progression, &player);
-                save(&data);
-            }
+            let data = build_save_data(&profiles, &meta);
+            save(&data);
             pending.0 = false;
         }
     }
 }
 
 /// Autoload on entering MainMenu.
-fn autoload(mut save_state: ResMut<SaveState>, state: Res<State<AppState>>) {
+fn autoload(
+    mut save_state: ResMut<SaveState>,
+    mut profiles: ResMut<PlayerProfiles>,
+    mut meta: ResMut<MetaProgression>,
+    state: Res<State<AppState>>,
+) {
     if *state.get() == AppState::MainMenu && save_state.data.is_none() {
-        save_state.data = load();
-        if save_state.data.is_some() {
-            info!("Save file loaded successfully");
+        save_state.data = Some(load().unwrap_or_default());
+        if let Some(ref data) = save_state.data {
+            profiles.profiles = data.profiles.clone();
+            profiles.next_id = data.next_profile_id;
+            *meta = data.meta.clone();
+            if !data.profiles.is_empty() {
+                info!("Loaded {} character(s)", data.profiles.len());
+            }
         }
     }
 }

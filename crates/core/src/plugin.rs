@@ -1,13 +1,20 @@
-use bevy::prelude::*;
 use crate::components::*;
+use crate::db::{auto_save, init_save_db, save_on_quit};
 use crate::events::*;
+use crate::items::starter_item_defs;
 use crate::resources::*;
+use bevy::prelude::*;
 
 /// Small timer to ensure loading screen shows for at least one frame.
 #[derive(Resource)]
 pub struct LoadingTimer(pub f32);
 
-/// Registers all core types, resources, events, and systems.
+impl Default for LoadingTimer {
+    fn default() -> Self {
+        Self(0.2)
+    }
+}
+
 pub struct CorePlugin;
 
 impl Plugin for CorePlugin {
@@ -19,40 +26,38 @@ impl Plugin for CorePlugin {
 
             // Resources
             .init_resource::<PlayerInput>()
-            .init_resource::<WaveState>()
-            .init_resource::<RunProgression>()
+            .init_resource::<PlayerProfiles>()
+            .init_resource::<CharacterCreationState>()
+            .init_resource::<ItemDatabase>()
             .init_resource::<MetaProgression>()
-            .init_resource::<GameConfig>()
-            .init_resource::<CursorWorldPos>()
-            .init_resource::<CameraTransform>()
+            .init_resource::<RunProgression>()
+            .init_resource::<WaveState>()
+            .init_resource::<LoadingTimer>()
             .init_resource::<PlayTimer>()
             .init_resource::<DungeonState>()
             .init_resource::<ScreenShake>()
+            .init_resource::<DeathPenalty>()
+            .init_resource::<Graveyard>()
 
             // Events
             .add_event::<DamageEvent>()
             .add_event::<DeathEvent>()
-            .add_event::<ExperienceGainEvent>()
-            .add_event::<LevelUpEvent>()
-            .add_event::<PickupEvent>()
+            .add_event::<PlayerDeathEvent>()
+            .add_event::<DungeonEndEvent>()
+            .add_event::<EquipItemEvent>()
+            .add_event::<UnequipItemEvent>()
             .add_event::<WaveStartEvent>()
             .add_event::<WaveClearedEvent>()
-            .add_event::<RoomTransitionEvent>()
-            .add_event::<RunStartEvent>()
             .add_event::<RunEndEvent>()
             .add_event::<DamageNumberEvent>()
             .add_event::<SpawnImpactEvent>()
 
-            // Loading timer
-            .insert_resource(LoadingTimer(0.5))
+            // Startup — populate item database + open save DB
+            .add_systems(Startup, (init_item_database, init_save_db))
 
-            // Loading → MainMenu transition after assets are created
-            .add_systems(OnEnter(AppState::Loading), (
-                start_loading_timer,
-            ))
-            .add_systems(Update, (
-                finish_loading.run_if(in_state(AppState::Loading)),
-            ))
+            // Loading → MainMenu transition
+            .add_systems(OnEnter(AppState::Loading), (start_loading_timer,))
+            .add_systems(Update, (finish_loading.run_if(in_state(AppState::Loading)),))
 
             // Game loop systems
             .add_systems(Update, (
@@ -60,98 +65,22 @@ impl Plugin for CorePlugin {
                 handle_player_death,
                 update_play_timer,
                 wave_announcer,
-            ));
+            ))
+
+            // Auto-save every 30s during gameplay
+            .add_systems(Update, auto_save.run_if(in_state(AppState::Playing)))
+
+            // Save-on-quit
+            .add_systems(Last, save_on_quit);
     }
 }
 
-/// Ticks the play timer while in a game state (World, Dungeon, or Playing).
-fn update_play_timer(
-    time: Res<Time>,
-    mut timer: ResMut<PlayTimer>,
-    state: Res<State<AppState>>,
-    progression: Res<RunProgression>,
-) {
-    match *state.get() {
-        AppState::World | AppState::Dungeon | AppState::Playing => {
-            timer.0 += time.delta_secs();
-        }
-        AppState::GameOver => {
-            // Freeze timer — don't reset
-        }
-        _ => {
-            timer.0 = progression.run_time;
-        }
-    }
-}
-/// Toggle pause with Escape key in World, Dungeon, or Playing.
-fn toggle_pause(
-    input: Res<PlayerInput>,
-    state: Res<State<AppState>>,
-    mut next_state: ResMut<NextState<AppState>>,
-) {
-    if !input.pause {
-        return;
-    }
-    match *state.get() {
-        AppState::World | AppState::Dungeon | AppState::Playing => {
-            next_state.set(AppState::Paused);
-        }
-        AppState::Paused => {
-            next_state.set(AppState::Playing);
-        }
-        _ => {}
-    }
+// ── Loading screen ──────────────────────────────────────────────────────
+
+fn start_loading_timer(mut commands: Commands) {
+    commands.insert_resource(LoadingTimer(0.2));
 }
 
-/// Transition to GameOver when the player dies.
-fn handle_player_death(
-    player_query: Query<&Health, With<Player>>,
-    mut next_state: ResMut<NextState<AppState>>,
-    mut run_end_events: EventWriter<RunEndEvent>,
-    wave_state: Res<WaveState>,
-    mut progression: ResMut<RunProgression>,
-    state: Res<State<AppState>>,
-    time: Res<Time>,
-    play_timer: Res<PlayTimer>,
-) {
-    if *state.get() != AppState::Playing && *state.get() != AppState::Dungeon && *state.get() != AppState::World {
-        return;
-    }
-    let health = match player_query.get_single() {
-        Ok(h) => h,
-        Err(_) => return,
-    };
-    if !health.is_alive() && time.elapsed_secs_f64() as f32 >= health.invulnerable_until {
-        progression.run_time = play_timer.0;
-        run_end_events.send(RunEndEvent {
-            victory: false,
-            wave_reached: wave_state.wave_number,
-            kills: progression.kills,
-            run_time: progression.run_time,
-        });
-        next_state.set(AppState::GameOver);
-    }
-}
-
-/// Log wave events to console as placeholder announcements.
-fn wave_announcer(
-    mut wave_start_events: EventReader<WaveStartEvent>,
-    mut wave_cleared_events: EventReader<WaveClearedEvent>,
-) {
-    for event in wave_start_events.read() {
-        info!("=== WAVE {} START — {} enemies ===", event.wave_number, event.enemy_count);
-    }
-    for event in wave_cleared_events.read() {
-        info!("=== WAVE {} CLEARED ===\n", event.wave_number);
-    }
-}
-
-/// Initializes the loading timer when entering Loading state.
-fn start_loading_timer(mut timer: ResMut<LoadingTimer>) {
-    timer.0 = 0.5;
-}
-
-/// Waits for the timer to elapse then transitions to MainMenu.
 fn finish_loading(
     time: Res<Time>,
     mut timer: ResMut<LoadingTimer>,
@@ -160,5 +89,86 @@ fn finish_loading(
     timer.0 -= time.delta_secs();
     if timer.0 <= 0.0 {
         next_state.set(AppState::MainMenu);
+    }
+}
+
+// ── Pause ───────────────────────────────────────────────────────────────
+
+fn toggle_pause(
+    input: Res<PlayerInput>,
+    state: Res<State<AppState>>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
+    if input.pause {
+        let next = match *state.get() {
+            AppState::Paused => AppState::Playing,
+            AppState::Playing | AppState::World | AppState::Dungeon => AppState::Paused,
+            _ => return,
+        };
+        next_state.set(next);
+    }
+}
+
+// ── Player death → GameOver ─────────────────────────────────────────────
+
+fn handle_player_death(
+    mut player_death_events: EventWriter<PlayerDeathEvent>,
+    health_query: Query<(Entity, &Health, &Transform), With<Player>>,
+    dungeon_state: Res<DungeonState>,
+    mut next_state: ResMut<NextState<AppState>>,
+    mut shake: ResMut<ScreenShake>,
+) {
+    let (entity, health, transform) = match health_query.get_single() {
+        Ok(h) => h,
+        Err(_) => return,
+    };
+    // Check if health just hit zero this frame
+    if health.is_alive() {
+        return;
+    }
+
+    let in_dungeon = dungeon_state.current.is_some();
+
+    // Fire player death event
+    player_death_events.send(PlayerDeathEvent {
+        player: entity,
+        killer: None,
+        position: transform.translation,
+        in_dungeon,
+    });
+
+    // Screen shake + transition
+    shake.trauma = 1.0;
+    info!("Player died! Sending to graveyard/end screen");
+
+    if in_dungeon {
+        next_state.set(AppState::GameOver);
+    } else {
+        // Open world: respawn at graveyard (handled by gameplay system)
+        next_state.set(AppState::Playing);
+    }
+}
+
+// ── Play timer ──────────────────────────────────────────────────────────
+
+fn update_play_timer(
+    state: Res<State<AppState>>,
+    time: Res<Time>,
+    mut play_timer: ResMut<PlayTimer>,
+) {
+    if !matches!(*state.get(), AppState::Playing | AppState::World | AppState::Dungeon) {
+        return;
+    }
+    play_timer.0 += time.delta_secs();
+}
+
+// ── Wave announcer (placeholder) ────────────────────────────────────────
+
+fn wave_announcer(
+    mut events: EventReader<WaveStartEvent>,
+    mut wave_cleared: EventWriter<WaveClearedEvent>,
+) {
+    for _event in events.read() {
+        // Placeholder — actual wave logic in dungeon/gameplay
     }
 }

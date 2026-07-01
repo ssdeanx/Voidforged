@@ -117,3 +117,22 @@ pub fn update_prompt_text(
         text.0 = msg.clone();
     }
 }
+
+/// Updates stamina bar width from player's Stamina component.
+pub fn update_stamina_bar(
+    player_query: Query<&Stamina, With<Player>>,
+    mut bar_query: Query<&mut Node, With<HudStaminaBar>>,
+    mut text_query: Query<&mut Text, With<HudStaminaText>>,
+) {
+    let stamina = match player_query.get_single() {
+        Ok(s) => s,
+        Err(_) => return,
+    };
+    let pct = stamina.fraction();
+    for mut node in bar_query.iter_mut() {
+        node.width = Val::Percent(pct * 100.0);
+    }
+    for mut text in text_query.iter_mut() {
+        text.0 = format!("{:.0}/{:.0}", stamina.current, stamina.max);
+    }
+}

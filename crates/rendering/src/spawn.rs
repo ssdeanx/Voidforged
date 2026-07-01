@@ -85,24 +85,36 @@ pub fn spawn_game_world(
     ));
 }
 
-/// Spawns the player entity at world origin — state-persistent (no RoomEntity).
+/// Spawns the player entity at world origin with class data from character creation.
 pub fn spawn_player(
     mut commands: Commands,
     assets: Res<GameAssets>,
     time: Res<Time>,
+    creation_state: Res<CharacterCreationState>,
 ) {
+    let class = creation_state.selected_class.unwrap_or(CharacterClass::Warrior);
+    let name = if creation_state.player_name.is_empty() {
+        class.display_name().to_string()
+    } else {
+        creation_state.player_name.clone()
+    };
+    let stats = class.base_stats();
+    let weapon = class.starting_weapon();
+
     commands.spawn((
         Mesh3d(assets.player_mesh.clone()),
         MeshMaterial3d(assets.player_material.clone()),
         Transform::from_xyz(0.0, 0.0, 0.0),
         Player::default(),
+        PlayerClass(class),
+        PlayerName(name),
         Health {
-            current: 100.0,
-            max: 100.0,
+            current: class.base_max_hp(),
+            max: class.base_max_hp(),
             invulnerable_until: time.elapsed_secs_f64() as f32 + 4.0,
         },
-        CombatStats::default(),
-        Weapon::new(WeaponKind::MagicMissile, 10.0, 1.5, 15.0),
+        stats,
+        weapon,
         Velocity(Vec3::ZERO),
         DashCooldown::default(),
         Equipment::default(),
@@ -135,13 +147,13 @@ pub fn reset_run_resources(
     *input = PlayerInput::default();
 }
 
-/// Reads Enter key to transition from MainMenu → World.
+/// Reads Enter key to transition from MainMenu → CharacterSelect.
 pub fn start_game_from_menu(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     if keyboard.just_pressed(KeyCode::Enter) || keyboard.just_pressed(KeyCode::Space) {
-        next_state.set(AppState::World);
+        next_state.set(AppState::CharacterSelect);
     }
 }
 

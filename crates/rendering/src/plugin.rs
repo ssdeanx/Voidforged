@@ -43,6 +43,23 @@ impl Plugin for RenderingPlugin {
             .add_systems(Update, spawn::start_game_from_menu
                 .run_if(in_state(ir_core::AppState::MainMenu)))
 
+            // CharacterSelect — choose class + name before entering world
+            .add_systems(OnEnter(ir_core::AppState::CharacterSelect), (
+                hud::despawn_main_menu,
+                hud::character_select::spawn_character_select,
+            ))
+            .add_systems(Update, (
+                hud::character_select::handle_class_selection,
+                hud::character_select::handle_name_input,
+                hud::character_select::confirm_character,
+                hud::character_select::play_existing_character,
+                hud::character_select::delete_character,
+                hud::character_select::populate_existing_characters,
+            ).run_if(in_state(ir_core::AppState::CharacterSelect)))
+            .add_systems(OnExit(ir_core::AppState::CharacterSelect), (
+                hud::character_select::despawn_character_select,
+            ))
+
             // World — open world exploration
             .add_systems(OnEnter(ir_core::AppState::World), (
                 hud::despawn_main_menu,

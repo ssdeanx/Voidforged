@@ -8,3 +8,5 @@ bevy = { workspace = true }
 serde = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
+bincode = { workspace = true }
+rusqlite = { version = "0.32", features = ["bundled"] }

@@ -12,6 +12,7 @@ pub mod menu;
 pub mod layout;
 pub mod updates;
 pub mod notifications;
+pub mod character_select;
 
 // Re-exports for backward compatibility with plugin references
 pub use layout::{despawn_hud, spawn_hotbar, spawn_hud};
@@ -25,5 +26,5 @@ pub use notifications::{
 };
 pub use updates::{
     update_dash_text, update_gold_text, update_health_bar, update_level_text,
-    update_prompt_text, update_xp_bar, update_zone_text,
+    update_prompt_text, update_stamina_bar, update_xp_bar, update_zone_text,
 };

@@ -28,7 +28,7 @@ pub fn spawn_main_menu_screen(mut commands: Commands) {
             MainMenuRoot,
         ))
         .with_children(|root| {
-            root.spawn((label("ISOMETRIC ROGUELITE", 48.0, Color::srgb(0.7, 0.5, 1.0)), MainMenuRoot));
+            root.spawn((label("VOIDFORGED", 48.0, Color::srgb(0.7, 0.5, 1.0)), MainMenuRoot));
             root.spawn((Node { height: Val::Px(20.0), ..default() }, MainMenuRoot));
             root.spawn((label("Press ENTER to start", 24.0, Color::srgb(0.4, 0.7, 1.0)), MainMenuRoot));
             root.spawn((Node { height: Val::Px(40.0), ..default() }, MainMenuRoot));
@@ -57,7 +57,7 @@ pub fn spawn_main_menu_screen(mut commands: Commands) {
 
             root.spawn((Node { height: Val::Px(30.0), ..default() }, MainMenuRoot));
             root.spawn((
-                label("v0.4.0 — CachyOS + Rust + Bevy 0.15", 14.0, Color::srgb(0.4, 0.4, 0.5)),
+                label("VOIDFORGED v0.3.0 — Rust + Bevy 0.15", 14.0, Color::srgb(0.4, 0.4, 0.5)),
                 MainMenuRoot,
             ));
         });
