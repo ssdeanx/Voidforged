@@ -24,41 +24,71 @@ pub fn move_projectiles(
     }
 }
 
-/// Player projectiles hit enemies.
+/// Projectile overlap detection using proper distance checks.
+/// Also applies Frozen/Stun effects from special projectiles.
 pub fn projectile_hit(
     mut commands: Commands,
     mut damage_events: EventWriter<DamageEvent>,
     mut dmg_num_events: EventWriter<DamageNumberEvent>,
     mut impact_events: EventWriter<SpawnImpactEvent>,
-    projectiles: Query<(Entity, &Projectile, &Transform)>,
-    enemies: Query<(Entity, &Transform), With<Enemy>>,
+    projectiles: Query<(Entity, &Projectile, &Transform, Option<&MagicProjectile>)>,
+    enemies: Query<(Entity, &Transform, &CombatStats), With<Enemy>>,
 ) {
-    for (proj_entity, projectile, proj_transform) in projectiles.iter() {
+    for (proj_entity, projectile, proj_transform, is_magic) in projectiles.iter() {
         if projectile.owner != ProjectileOwner::Player {
             continue;
         }
-        for (enemy_entity, enemy_transform) in enemies.iter() {
+        // Use proper overlap: projectile hit radius + enemy hitbox radius (~0.5 units)
+        let hit_radius = if is_magic.is_some() { 1.2 } else { 0.8 };
+        for (enemy_entity, enemy_transform, _stats) in enemies.iter() {
             let dist = proj_transform
                 .translation
                 .distance(enemy_transform.translation);
-            if dist < 1.0 {
+            if dist < hit_radius {
                 let hit_pos = enemy_transform.translation + Vec3::Y * 1.0;
+                // Determine damage type from projectile context
+                let damage_type = if is_magic.is_some() {
+                    DamageType::Magic
+                } else {
+                    DamageType::Physical
+                };
                 damage_events.send(DamageEvent {
                     target: enemy_entity,
                     source: proj_entity,
                     amount: projectile.damage,
                     is_critical: false,
-                    damage_type: DamageType::Physical,
+                    damage_type: damage_type.clone(),
                 });
                 dmg_num_events.send(DamageNumberEvent {
                     position: hit_pos,
                     amount: projectile.damage as i32,
                     is_crit: false,
+                    damage_type: damage_type.clone(),
                 });
+                // Impact color based on damage type
+                let impact_color = match damage_type {
+                    DamageType::Physical => Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
+                    DamageType::Magic => Some(Vec4::new(0.8, 0.4, 1.0, 1.0)),
+                    DamageType::True => Some(Vec4::new(1.0, 0.6, 0.0, 1.0)),
+                };
                 impact_events.send(SpawnImpactEvent {
                     position: hit_pos,
-                    color: None,
+                    color: impact_color,
                 });
+                // Apply knockback to enemy
+                let kb_dir = (enemy_transform.translation - proj_transform.translation)
+                    .normalize_or_zero()
+                    * Vec3::new(1.0, 0.0, 1.0);
+                if kb_dir.length_squared() > 0.1 {
+                    commands.entity(enemy_entity).insert(Knockback::new(
+                        kb_dir * 8.0,
+                        6.0,
+                    ));
+                }
+                // Apply frozen effect from magic projectiles (frostbolt)
+                if is_magic.is_some() {
+                    commands.entity(enemy_entity).insert(Frozen::new(2.0));
+                }
                 if !projectile.piercing {
                     commands.entity(proj_entity).despawn();
                 }
@@ -99,6 +129,7 @@ pub fn projectile_hit_player(
                 position: player_transform.translation + Vec3::Y * 1.0,
                 amount: projectile.damage as i32,
                 is_crit: false,
+                damage_type: DamageType::Physical,
             });
             commands.entity(proj_entity).despawn();
         }
@@ -106,7 +137,8 @@ pub fn projectile_hit_player(
 }
 
 // ============================================================================
-// Damage Pipeline — applies armor, dodge, crit, lifesteal, shield block
+// Damage Pipeline — applies armor, dodge, crit, lifesteal, shield block,
+// stagger/hit-stun, knockback, and hit-stop
 // ============================================================================
 
 #[derive(Component, Clone)]
@@ -114,15 +146,16 @@ pub struct DamageReduction {
     pub pct: f32, // 0.0–1.0 damage reduction multiplier
 }
 
-/// Applies damage events to health — respects armor, dodge, crit, lifesteal, and buffs.
+/// Applies damage events to health — respects armor, dodge, crit, lifesteal, buffs.
+/// Also applies hit-stun, knockback, and status effects.
 pub fn apply_damage(
     time: Res<Time>,
     mut commands: Commands,
     mut shake: ResMut<ScreenShake>,
     mut damage_events: EventReader<DamageEvent>,
     mut death_events: EventWriter<DeathEvent>,
-    mut player_query: Query<(Entity, &CombatStats), With<Player>>,
-    mut enemy_query: Query<&CombatStats, (With<Enemy>, Without<Player>)>,
+    player_query: Query<(Entity, &CombatStats), With<Player>>,
+    enemy_query: Query<&CombatStats, (With<Enemy>, Without<Player>)>,
     mut health_query: Query<&mut Health>,
     shield_query: Query<&DamageReduction>,
 ) {
@@ -184,9 +217,10 @@ pub fn apply_damage(
 
         let raw_dmg = amount.max(1.0);
 
-        // ── Screen shake on player hit ──────────────────────────
+        // ── Screen shake on player hit (proportional to damage) ─
         if is_player_target {
-            shake.trauma = (shake.trauma + raw_dmg / 100.0).min(1.0);
+            let trauma_add = (raw_dmg / 50.0).min(1.0);
+            shake.trauma = (shake.trauma + trauma_add).min(1.0);
         }
 
         // ── Apply damage ────────────────────────────────────────
@@ -208,6 +242,24 @@ pub fn apply_damage(
             }
         }
 
+        // ── Hit-stun (stagger) on damage taken ──────────────────
+        // Brief movement interrupt proportional to damage
+        if !is_dead {
+            let stun_duration = (raw_dmg / 50.0).min(0.3);
+            if stun_duration > 0.05 {
+                commands.entity(target).insert(HitStun::new(stun_duration));
+            }
+            // Small hit-stop for game feel
+            commands.entity(target).insert(HitStop::new(stun_duration * 0.3));
+        }
+
+        // ── Stun on heavy hits (damage > 30% of max HP estimate) ─
+        if let Ok(health) = health_query.get(target) {
+            if raw_dmg > health.max * 0.3 && !is_dead {
+                commands.entity(target).insert(Stun::new(0.5));
+            }
+        }
+
         if is_dead {
             dead_this_frame.push(target);
             death_events.send(DeathEvent {
@@ -220,11 +272,10 @@ pub fn apply_damage(
 }
 
 // ============================================================================
-// Death Events — spawns old-style loot (legacy, kept for XP/gems)
+// Death Events — spawns loot
 // ============================================================================
 
 /// Handles death events — spawns loot, despawns enemies.
-/// Note: new item drops are handled by loot::spawn_loot_from_table.
 pub fn handle_death(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
@@ -246,17 +297,19 @@ pub fn handle_death(
 }
 
 // ============================================================================
-// Hitbox Processing
+// Hitbox Processing — with knockback, hit-stop, hit-flash
 // ============================================================================
 
 /// Processes all DamageHitbox entities — checks shape overlap with enemies,
-/// sends DamageEvent on first hit, ticks lifetime, despawns expired.
+/// sends DamageEvent on first hit, applies knockback, ticks lifetime, despawns.
 pub fn process_hitboxes(
     mut commands: Commands,
     time: Res<Time>,
     mut hitboxes: Query<(Entity, &mut DamageHitbox, &Transform)>,
     enemies: Query<(Entity, &Transform), With<Enemy>>,
     mut damage_events: EventWriter<DamageEvent>,
+    mut dmg_num_events: EventWriter<DamageNumberEvent>,
+    mut impact_events: EventWriter<SpawnImpactEvent>,
 ) {
     for (hitbox_entity, mut hitbox, tf) in hitboxes.iter_mut() {
         hitbox.lifetime -= time.delta_secs();
@@ -288,12 +341,53 @@ pub fn process_hitboxes(
 
             if hit {
                 hitbox.hit_enemies.push(enemy_entity);
+
+                // Knockback direction: from hitbox origin toward enemy, on XZ plane
+                let kb_dir = (enemy_tf.translation - origin)
+                    .normalize_or_zero()
+                    * Vec3::new(1.0, 0.0, 1.0);
+                if hitbox.knockback > 0.0 && kb_dir.length_squared() > 0.1 {
+                    commands.entity(enemy_entity).insert(Knockback::new(
+                        kb_dir * hitbox.knockback * 5.0,
+                        6.0,
+                    ));
+                }
+
+                // Hit-stun and hit-stop on the target
+                if hitbox.hit_stun_duration > 0.0 {
+                    commands.entity(enemy_entity).insert(HitStun::new(hitbox.hit_stun_duration));
+                }
+                if hitbox.hit_stop_duration > 0.0 {
+                    commands.entity(enemy_entity).insert(HitStop::new(hitbox.hit_stop_duration));
+                }
+
+                let damage_type = hitbox.damage_type.clone();
+                let hit_pos = enemy_tf.translation + Vec3::Y * 1.0;
+
                 damage_events.send(DamageEvent {
                     target: enemy_entity,
                     source: hitbox.source,
                     amount: hitbox.damage,
                     is_critical: false,
-                    damage_type: hitbox.damage_type.clone(),
+                    damage_type: damage_type.clone(),
+                });
+
+                dmg_num_events.send(DamageNumberEvent {
+                    position: hit_pos,
+                    amount: hitbox.damage as i32,
+                    is_crit: false,
+                    damage_type: damage_type.clone(),
+                });
+
+                // Colored impact effect
+                let impact_color = match damage_type {
+                    DamageType::Physical => Some(Vec4::new(1.0, 1.0, 1.0, 1.0)),
+                    DamageType::Magic => Some(Vec4::new(0.8, 0.4, 1.0, 1.0)),
+                    DamageType::True => Some(Vec4::new(1.0, 0.6, 0.0, 1.0)),
+                };
+                impact_events.send(SpawnImpactEvent {
+                    position: hit_pos,
+                    color: impact_color,
                 });
             }
         }
@@ -311,6 +405,7 @@ pub fn process_enemy_hitboxes(
     mut hitboxes: Query<(Entity, &mut DamageHitbox, &Transform), With<EnemyHitbox>>,
     player_query: Query<(Entity, &Transform), With<Player>>,
     mut damage_events: EventWriter<DamageEvent>,
+    mut dmg_num_events: EventWriter<DamageNumberEvent>,
 ) {
     let Ok((player_entity, player_tf)) = player_query.get_single() else {
         return;
@@ -331,6 +426,26 @@ pub fn process_enemy_hitboxes(
 
         if hit && !hitbox.hit_enemies.contains(&player_entity) {
             hitbox.hit_enemies.push(player_entity);
+
+            // Knockback player
+            let kb_dir = (player_tf.translation - origin)
+                .normalize_or_zero()
+                * Vec3::new(1.0, 0.0, 1.0);
+            if hitbox.knockback > 0.0 && kb_dir.length_squared() > 0.1 {
+                commands.entity(player_entity).insert(Knockback::new(
+                    kb_dir * hitbox.knockback * 4.0,
+                    5.0,
+                ));
+            }
+
+            // Hit-stun on player
+            if hitbox.hit_stun_duration > 0.0 {
+                commands.entity(player_entity).insert(HitStun::new(hitbox.hit_stun_duration));
+            }
+            if hitbox.hit_stop_duration > 0.0 {
+                commands.entity(player_entity).insert(HitStop::new(hitbox.hit_stop_duration));
+            }
+
             damage_events.send(DamageEvent {
                 target: player_entity,
                 source: hitbox.source,
@@ -338,11 +453,113 @@ pub fn process_enemy_hitboxes(
                 is_critical: false,
                 damage_type: hitbox.damage_type.clone(),
             });
+
+            dmg_num_events.send(DamageNumberEvent {
+                position: player_tf.translation + Vec3::Y * 1.0,
+                amount: hitbox.damage as i32,
+                is_crit: false,
+                damage_type: hitbox.damage_type.clone(),
+            });
         }
 
         if hitbox.lifetime <= 0.0 {
             commands.entity(hitbox_entity).despawn();
         }
+    }
+}
+
+// ============================================================================
+// Knockback System
+// ============================================================================
+
+/// Applies knockback velocity and decays it with damping.
+pub fn apply_knockback(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Transform, &mut Knockback)>,
+) {
+    for (entity, mut transform, mut knockback) in query.iter_mut() {
+        // Apply knockback velocity
+        transform.translation += knockback.velocity * time.delta_secs();
+
+        // Damping decay
+        let damping_factor = (1.0 - knockback.damping * time.delta_secs()).max(0.0);
+        knockback.velocity *= damping_factor;
+
+        // Remove when negligible
+        if knockback.velocity.length_squared() < 0.01 {
+            commands.entity(entity).remove::<Knockback>();
+        }
+    }
+}
+
+// ============================================================================
+// Status Effect Systems
+// ============================================================================
+
+/// Ticks Frozen duration and removes expired.
+pub fn tick_frozen(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Frozen)>,
+) {
+    for (entity, mut frozen) in query.iter_mut() {
+        frozen.remaining -= time.delta_secs();
+        if frozen.remaining <= 0.0 {
+            commands.entity(entity).remove::<Frozen>();
+        }
+    }
+}
+
+/// Ticks Stun duration and removes expired.
+pub fn tick_stun(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Stun)>,
+) {
+    for (entity, mut stun) in query.iter_mut() {
+        stun.remaining -= time.delta_secs();
+        if stun.remaining <= 0.0 {
+            commands.entity(entity).remove::<Stun>();
+        }
+    }
+}
+
+/// Ticks HitStun (stagger) duration and removes expired.
+pub fn tick_hit_stun(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut HitStun)>,
+) {
+    for (entity, mut hit_stun) in query.iter_mut() {
+        hit_stun.remaining -= time.delta_secs();
+        if hit_stun.remaining <= 0.0 {
+            commands.entity(entity).remove::<HitStun>();
+        }
+    }
+}
+
+/// Ticks HitStop duration. While active, entity velocity is suppressed.
+pub fn tick_hit_stop(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut HitStop)>,
+) {
+    for (entity, mut hit_stop) in query.iter_mut() {
+        hit_stop.remaining -= time.delta_secs();
+        if hit_stop.remaining <= 0.0 {
+            commands.entity(entity).remove::<HitStop>();
+        }
+    }
+}
+
+/// Prevents movement when stunned or frozen (applied as velocity suppression).
+/// This system zeroes out movement velocity for stunned entities.
+pub fn apply_stun_movement_block(
+    mut query: Query<&mut Velocity, (With<Stun>, Without<Player>)>,
+) {
+    for mut velocity in query.iter_mut() {
+        velocity.0 = Vec3::ZERO;
     }
 }
 

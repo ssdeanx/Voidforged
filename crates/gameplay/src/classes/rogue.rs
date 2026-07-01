@@ -109,7 +109,7 @@ pub fn tick_poison(
 /// Applies poison tick damage and removes expired poisons.
 pub fn apply_poison_damage(
     mut commands: Commands,
-    time: Res<Time>,
+    _time: Res<Time>,
     mut poisoned: Query<(Entity, &mut PoisonDoT)>,
     mut damage_events: EventWriter<DamageEvent>,
 ) {

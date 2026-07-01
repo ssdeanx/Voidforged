@@ -40,7 +40,14 @@ pub struct DamageHitbox {
     /// Tracks enemies already hit (anti-double-tap).
     pub hit_enemies: Vec<Entity>,
     pub owner: ProjectileOwner,
+    /// Knockback magnitude (direction computed from hitbox to target).
     pub knockback: f32,
+    /// Duration of hit-stun (stagger) applied to the target on hit.
+    pub hit_stun_duration: f32,
+    /// Duration of visual hit-flash on the target.
+    pub hit_flash_duration: f32,
+    /// Duration of hit-stop (local time freeze on the hit entity).
+    pub hit_stop_duration: f32,
 }
 
 impl DamageHitbox {
@@ -63,7 +70,18 @@ impl DamageHitbox {
             hit_enemies: Vec::with_capacity(8),
             owner,
             knockback,
+            hit_stun_duration: 0.1,
+            hit_flash_duration: 0.15,
+            hit_stop_duration: 0.05,
         }
+    }
+
+    /// Convenience builder for hit-stop configuration.
+    pub fn with_hit_reaction(mut self, stun: f32, flash: f32, stop: f32) -> Self {
+        self.hit_stun_duration = stun;
+        self.hit_flash_duration = flash;
+        self.hit_stop_duration = stop;
+        self
     }
 }
 

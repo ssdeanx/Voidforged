@@ -1,5 +1,5 @@
 //! Warrior class — melee cleave, shield block, charge, combat roll.
-//! Resource: Rage (generated on dealing/taking damage).
+//! Resource: Rage (generated on dealing/taking damage, 5 Rage per event).
 
 use bevy::prelude::*;
 use ir_core::*;
@@ -40,7 +40,8 @@ pub fn primary_melee_cleave(
             0.15, // lifetime (seconds) — quick swing
             ProjectileOwner::Player,
             2.0,  // knockback
-        ),
+        )
+        .with_hit_reaction(0.15, 0.15, 0.05),
         Transform {
             translation: transform.translation,
             rotation: transform.rotation,
@@ -118,6 +119,45 @@ pub fn cleanup_shield_block(
     for (entity, block) in query.iter() {
         if block.remaining <= 0.0 {
             commands.entity(entity).remove::<ShieldBlock>();
+        }
+    }
+}
+
+// ── Rage Generation ──────────────────────────────────────────────────────
+
+/// Generates rage when the warrior deals damage (from hitbox processing).
+/// Reads DamageEvent and grants 5 Rage per hit.
+pub fn warrior_rage_on_damage(
+    mut damage_events: EventReader<DamageEvent>,
+    mut player_query: Query<&mut ClassResource, (With<Player>, With<PlayerClass>)>,
+) {
+    let Ok(mut resource) = player_query.get_single_mut() else { return };
+    // Only generate rage for Warrior class
+    // (we check the resource type — Warrior has max=100 and regen=2)
+    if (resource.max - 100.0).abs() > 0.1 || (resource.regen_rate - 2.0).abs() > 0.1 {
+        return;
+    }
+    for event in damage_events.read() {
+        if event.damage_type == DamageType::Physical || event.damage_type == DamageType::True {
+            resource.current = (resource.current + 5.0).min(resource.max);
+        }
+    }
+}
+
+/// Generates rage when the warrior takes damage.
+/// Reads a separate event stream and grants 5 Rage.
+/// This is called from the damage pipeline when the warrior is the target.
+pub fn warrior_rage_on_take_damage(
+    mut damage_events: EventReader<DamageEvent>,
+    mut player_query: Query<(Entity, &mut ClassResource), (With<Player>, With<PlayerClass>)>,
+) {
+    let Ok((player_entity, mut resource)) = player_query.get_single_mut() else { return };
+    if (resource.max - 100.0).abs() > 0.1 || (resource.regen_rate - 2.0).abs() > 0.1 {
+        return;
+    }
+    for event in damage_events.read() {
+        if event.target == player_entity {
+            resource.current = (resource.current + 5.0).min(resource.max);
         }
     }
 }

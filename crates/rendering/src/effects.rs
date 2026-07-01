@@ -1,4 +1,7 @@
 //! GPU particle effects and custom shader materials for professional VFX.
+//!
+//! Includes impact bursts, glow effects, dash trails, telegraph pulse,
+//! and custom GlowMaterial for time-based pulsing emissive effects.
 
 use bevy::prelude::*;
 use bevy::render::render_resource::AsBindGroup;
@@ -15,6 +18,7 @@ pub struct EffectsLibrary {
     pub glow_green: Handle<EffectAsset>,
     pub glow_blue: Handle<EffectAsset>,
     pub dash_trail: Handle<EffectAsset>,
+    pub telegraph_pulse: Handle<EffectAsset>,
 }
 
 /// Builds all effect assets and inserts them as a resource.
@@ -26,7 +30,14 @@ pub fn build_effects_library(
     let glow_green = build_glow(&mut effects, Vec4::new(0.0, 1.0, 0.3, 1.0));
     let glow_blue = build_glow(&mut effects, Vec4::new(0.3, 0.6, 1.0, 1.0));
     let dash_trail = build_dash_trail(&mut effects);
-    commands.insert_resource(EffectsLibrary { impact_burst, glow_green, glow_blue, dash_trail });
+    let telegraph_pulse = build_telegraph_pulse(&mut effects);
+    commands.insert_resource(EffectsLibrary {
+        impact_burst,
+        glow_green,
+        glow_blue,
+        dash_trail,
+        telegraph_pulse,
+    });
 }
 
 fn build_impact_burst(effects: &mut Assets<EffectAsset>) -> Handle<EffectAsset> {
@@ -36,32 +47,52 @@ fn build_impact_burst(effects: &mut Assets<EffectAsset>) -> Handle<EffectAsset> 
     gradient.add_key(1.0, Vec4::new(0.5, 0.0, 0.0, 0.0));
 
     effects.add(
-        EffectAsset::new(64, SpawnerSettings::once(16.0.into()), Module::default())
-            .with_name("impact_burst")
-            .render(ColorOverLifetimeModifier {
-                gradient,
-                blend: ColorBlendMode::Overwrite,
-                mask: ColorBlendMask::all(),
-            })
-            .render(SetSizeModifier { size: CpuValue::Single(Vec3::splat(0.3)) }),
+        EffectAsset::new(
+            64,
+            SpawnerSettings::once(16.0.into()),
+            Module::default(),
+        )
+        .with_name("impact_burst")
+        .render(ColorOverLifetimeModifier {
+            gradient,
+            blend: ColorBlendMode::Overwrite,
+            mask: ColorBlendMask::all(),
+        })
+        .render(SetSizeModifier {
+            size: CpuValue::Single(Vec3::splat(0.3)),
+        }),
     )
 }
 
-fn build_glow(effects: &mut Assets<EffectAsset>, color: Vec4) -> Handle<EffectAsset> {
+fn build_glow(
+    effects: &mut Assets<EffectAsset>,
+    color: Vec4,
+) -> Handle<EffectAsset> {
     let mut gradient = Gradient::new();
     gradient.add_key(0.0, color);
-    gradient.add_key(0.5, Vec4::new(color.x * 0.3, color.y * 0.3, color.z * 0.3, 0.2));
+    gradient.add_key(0.5, Vec4::new(
+        color.x * 0.3,
+        color.y * 0.3,
+        color.z * 0.3,
+        0.2,
+    ));
     gradient.add_key(1.0, color);
 
     effects.add(
-        EffectAsset::new(32, SpawnerSettings::rate(20.0.into()), Module::default())
-            .with_name("glow")
-            .render(ColorOverLifetimeModifier {
-                gradient,
-                blend: ColorBlendMode::Overwrite,
-                mask: ColorBlendMask::all(),
-            })
-            .render(SetSizeModifier { size: CpuValue::Single(Vec3::splat(0.4)) }),
+        EffectAsset::new(
+            32,
+            SpawnerSettings::rate(20.0.into()),
+            Module::default(),
+        )
+        .with_name("glow")
+        .render(ColorOverLifetimeModifier {
+            gradient,
+            blend: ColorBlendMode::Overwrite,
+            mask: ColorBlendMask::all(),
+        })
+        .render(SetSizeModifier {
+            size: CpuValue::Single(Vec3::splat(0.4)),
+        }),
     )
 }
 
@@ -71,14 +102,41 @@ fn build_dash_trail(effects: &mut Assets<EffectAsset>) -> Handle<EffectAsset> {
     gradient.add_key(1.0, Vec4::new(0.3, 0.5, 0.8, 0.0));
 
     effects.add(
-        EffectAsset::new(32, SpawnerSettings::rate(30.0.into()), Module::default())
-            .with_name("dash_trail")
+        EffectAsset::new(
+            32,
+            SpawnerSettings::rate(30.0.into()),
+            Module::default(),
+        )
+        .with_name("dash_trail")
+        .render(ColorOverLifetimeModifier {
+            gradient,
+            blend: ColorBlendMode::Overwrite,
+            mask: ColorBlendMask::all(),
+        })
+        .render(SetSizeModifier {
+            size: CpuValue::Single(Vec3::splat(0.25)),
+        }),
+    )
+}
+
+/// Pulsing red/orange telegraph ring for enemy windup attacks.
+fn build_telegraph_pulse(effects: &mut Assets<EffectAsset>) -> Handle<EffectAsset> {
+    let mut gradient = Gradient::new();
+    gradient.add_key(0.0, Vec4::new(1.0, 0.2, 0.05, 0.8));
+    gradient.add_key(0.5, Vec4::new(1.0, 0.6, 0.1, 0.3));
+    gradient.add_key(1.0, Vec4::new(0.8, 0.0, 0.0, 0.0));
+
+    effects.add(
+        EffectAsset::new(48, SpawnerSettings::once(20.0.into()), Module::default())
+            .with_name("telegraph_pulse")
             .render(ColorOverLifetimeModifier {
                 gradient,
                 blend: ColorBlendMode::Overwrite,
                 mask: ColorBlendMask::all(),
             })
-            .render(SetSizeModifier { size: CpuValue::Single(Vec3::splat(0.25)) }),
+            .render(SetSizeModifier {
+                size: CpuValue::Single(Vec3::splat(0.6)),
+            }),
     )
 }
 
@@ -97,7 +155,11 @@ pub fn spawn_impact(commands: &mut Commands, library: &EffectsLibrary, position:
 }
 
 /// Spawns a glow effect at a position.
-pub fn spawn_glow(commands: &mut Commands, library: &EffectsLibrary, position: Vec3) -> Entity {
+pub fn spawn_glow(
+    commands: &mut Commands,
+    library: &EffectsLibrary,
+    position: Vec3,
+) -> Entity {
     commands
         .spawn((
             ParticleEffect::new(library.glow_green.clone()),
@@ -114,6 +176,16 @@ pub fn spawn_dash_trail(commands: &mut Commands, library: &EffectsLibrary, posit
         Transform::from_translation(position),
         GlobalTransform::default(),
         ir_core::Lifetime { remaining: 0.3 },
+    ));
+}
+
+/// Spawns a telegraph pulse effect (enemy windup indicator).
+pub fn spawn_telegraph(commands: &mut Commands, library: &EffectsLibrary, position: Vec3) {
+    commands.spawn((
+        ParticleEffect::new(library.telegraph_pulse.clone()),
+        Transform::from_translation(position),
+        GlobalTransform::default(),
+        ir_core::Lifetime { remaining: 1.2 },
     ));
 }
 
