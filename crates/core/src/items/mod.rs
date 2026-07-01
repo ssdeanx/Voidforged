@@ -17,3 +17,4 @@ pub use definitions::*;
 pub use instance::*;
 pub use inventory::*;
 pub use equipment::*;
+pub use gear_score::*;

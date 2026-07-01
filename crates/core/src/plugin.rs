@@ -1,7 +1,6 @@
 use crate::components::*;
 use crate::db::{auto_save, init_save_db, save_on_quit};
 use crate::events::*;
-use crate::items::starter_item_defs;
 use crate::resources::*;
 use bevy::prelude::*;
 
@@ -166,7 +165,7 @@ fn update_play_timer(
 
 fn wave_announcer(
     mut events: EventReader<WaveStartEvent>,
-    mut wave_cleared: EventWriter<WaveClearedEvent>,
+    _wave_cleared: EventWriter<WaveClearedEvent>,
 ) {
     for _event in events.read() {
         // Placeholder — actual wave logic in dungeon/gameplay

@@ -7,6 +7,8 @@ use bevy::prelude::*;
 pub struct GameAssets {
     pub player_mesh: Handle<Mesh>,
     pub player_material: Handle<StandardMaterial>,
+    /// Class-specific player materials [Warrior, Paladin, Rogue, Hunter, Mage]
+    pub class_materials: Vec<Handle<StandardMaterial>>,
     pub enemy_meshes: Vec<Handle<Mesh>>,
     pub enemy_materials: Vec<Handle<StandardMaterial>>,
     pub projectile_mesh: Handle<Mesh>,

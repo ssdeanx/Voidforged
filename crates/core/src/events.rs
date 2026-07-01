@@ -102,6 +102,7 @@ pub struct DamageNumberEvent {
     pub position: Vec3,
     pub amount: i32,
     pub is_crit: bool,
+    pub damage_type: DamageType,
 }
 
 /// Fired to spawn a particle impact effect at a position.

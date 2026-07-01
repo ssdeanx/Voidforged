@@ -118,6 +118,7 @@ pub fn spawn_player(
         Velocity(Vec3::ZERO),
         DashCooldown::default(),
         Equipment::default(),
+        Inventory::new(20),
         Team::Player,
     ));
 }

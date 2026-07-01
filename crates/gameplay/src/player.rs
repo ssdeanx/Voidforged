@@ -44,11 +44,19 @@ pub fn apply_equipment(
 
 /// Handles player movement from input. Uses acceleration for weight.
 /// Movement is camera-relative: W = up-on-screen, not world +Z.
+/// Skips movement if stunned or hit-stunned.
 pub fn player_movement(
     time: Res<Time>,
     input: Res<PlayerInput>,
     cam: Res<ir_core::CameraTransform>,
-    mut query: Query<(&mut Velocity, &CombatStats, &DashCooldown), With<Player>>,
+    mut query: Query<(
+        &mut Velocity,
+        &CombatStats,
+        &DashCooldown,
+        Option<&Stun>,
+        Option<&HitStun>,
+        Option<&Frozen>,
+    ), With<Player>>,
 ) {
     // Get camera forward and right vectors projected onto the XZ plane
     let cam_rot = cam.1;
@@ -57,12 +65,20 @@ pub fn player_movement(
     let right = cam_rot * Vec3::X;
     let right_xz = Vec3::new(right.x, 0.0, right.z).normalize_or_zero();
 
-    for (mut velocity, stats, dash) in query.iter_mut() {
-        if dash.active {
+    for (mut velocity, stats, dash, stun, hit_stun, frozen) in query.iter_mut() {
+        // Don't allow manual movement during dash, stun, or hit-stun
+        if dash.active || stun.is_some() || hit_stun.is_some() {
+            velocity.0 = Vec3::ZERO;
             continue;
         }
         let dir = input.direction;
-        let speed = stats.move_speed + stats.move_speed_bonus;
+        let mut speed = stats.move_speed + stats.move_speed_bonus;
+
+        // Apply frozen slow (60% reduction)
+        if frozen.is_some() {
+            speed *= 0.4;
+        }
+
         let target = if dir.length_squared() > 0.0 {
             let n = dir.normalize();
             (forward_xz * n.y + right_xz * n.x) * speed
@@ -203,69 +219,4 @@ pub fn player_cast(
         render_info: RenderInfo::default(),
         room_entity: RoomEntity,
     });
-}
-
-/// Dash: quick burst with i-frames. Fires a projectile during dash (dash attack).
-pub fn player_dash(
-    mut commands: Commands,
-    time: Res<Time>,
-    input: Res<PlayerInput>,
-    cursor: Res<CursorWorldPos>,
-    mut player_query: Query<
-        (&Transform, &mut Velocity, &CombatStats, &mut DashCooldown, &mut Health),
-        With<Player>,
-    >,
-) {
-    let (transform, mut velocity, stats, mut dash, mut health) = match player_query.get_single_mut() {
-        Ok(p) => p,
-        Err(_) => return,
-    };
-
-    let cd_reduction = stats.dash_cooldown_reduction;
-    let base_cd = (1.0 - cd_reduction).max(0.2);
-
-    if dash.timer > 0.0 {
-        dash.timer -= time.delta_secs();
-    }
-
-    if dash.active {
-        dash.duration -= time.delta_secs();
-        if dash.duration <= 0.0 {
-            dash.active = false;
-            dash.duration = 0.25;
-            velocity.0 = Vec3::ZERO;
-            health.invulnerable_until = 0.0;
-        } else if dash.duration > 0.2 {
-            let dmg = 5.0 + stats.damage_bonus * 0.5;
-            if !dash.fired_dash_attack {
-                dash.fired_dash_attack = true;
-                let dir = velocity.0.normalize_or_zero();
-                if dir.length_squared() > 0.1 {
-                    commands.spawn(ProjectileBundle::new(
-                        dmg, 12.0, 0.5, dir,
-                        transform.translation + Vec3::Y * 0.5,
-                        ProjectileOwner::Player,
-                    ));
-                }
-            }
-        }
-        return;
-    }
-
-    if input.dodge && dash.timer <= 0.0 {
-        dash.active = true;
-        dash.timer = base_cd;
-        dash.duration = 0.25;
-
-        let move_dir = input.direction;
-        let dash_dir = if move_dir.length_squared() > 0.0 {
-            Vec3::new(move_dir.x, 0.0, move_dir.y).normalize()
-        } else {
-            let to_cursor = cursor.0 - transform.translation;
-            Vec3::new(to_cursor.x, 0.0, to_cursor.z).normalize_or_zero()
-        };
-
-        velocity.0 = dash_dir * 25.0;
-        health.invulnerable_until = time.elapsed_secs() as f32 + 0.3;
-    }
 }

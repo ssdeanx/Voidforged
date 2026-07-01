@@ -14,7 +14,7 @@ pub fn handle_equip_event(
     mut events: EventReader<EquipItemEvent>,
     mut player_query: Query<(Entity, &mut Inventory, &mut Equipment), With<Player>>,
 ) {
-    let Ok((player, mut inventory, mut equipment)) = player_query.get_single_mut() else {
+    let Ok((_player, mut inventory, mut equipment)) = player_query.get_single_mut() else {
         return;
     };
 
@@ -57,10 +57,24 @@ pub fn handle_unequip_event(
 }
 
 /// Recalculates stats from equipped items.
-pub fn recalc_equipment_stats(mut player_query: Query<(&Equipment, &mut CombatStats), With<Player>>) {
-    let Ok((_equipment, mut stats)) = player_query.get_single_mut() else {
+pub fn recalc_equipment_stats(
+    item_db: Res<ir_core::ItemDatabase>,
+    mut player_query: Query<(&Equipment, &mut CombatStats), With<Player>>,
+) {
+    let Ok((equip, mut stats)) = player_query.get_single_mut() else {
         return;
     };
     stats.damage_bonus = 0.0;
     stats.attack_speed_bonus = 0.0;
+    stats.armor = 0.0;
+    stats.max_health_bonus = 0.0;
+    stats.move_speed_bonus = 0.0;
+    stats.crit_chance = 0.05;
+    stats.crit_multiplier = 2.0;
+    stats.dodge_chance = 0.0;
+    stats.lifesteal = 0.0;
+    stats.pickup_radius = 2.0;
+    stats.armor_penetration = 0.0;
+
+    let _changes = equip.apply_stats(&item_db, &mut *stats);
 }

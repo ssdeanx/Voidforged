@@ -1,17 +1,24 @@
-//! In-game HUD layout: health bar, xp bar, level, gold, dash, zone, prompt, hotbar.
+//! In-game HUD layout — coordinator that spawns all WoW-style UI elements.
+//!
+//! Delegates to sub-modules for player frame, target frame, action bar,
+//! nameplates, and the zone tracker.
 
 use bevy::prelude::*;
 use crate::hud::components::*;
+use crate::hud::{player_frame, target_frame, ability_bar};
 
 fn label(s: &str, size: f32, color: Color) -> impl Bundle {
     (
         Text::new(s.to_string()),
-        TextFont { font_size: size, ..default() },
+        TextFont {
+            font_size: size,
+            ..default()
+        },
         TextColor(color),
     )
 }
 
-/// Spawns the full in-game HUD (top bar, xp bar, zone, prompt, hotbar).
+/// Spawns the full in-game HUD — root container and all child elements.
 pub fn spawn_hud(mut commands: Commands) {
     commands
         .spawn((
@@ -24,189 +31,132 @@ pub fn spawn_hud(mut commands: Commands) {
             HudRoot,
         ))
         .with_children(|parent| {
-            // ── Top bar: health, level, wave/gold/dash ──────────────
-            parent.spawn((
-                Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Px(44.0),
-                    flex_direction: FlexDirection::Row,
-                    justify_content: JustifyContent::SpaceBetween,
-                    align_items: AlignItems::Center,
-                    padding: UiRect::new(Val::Px(12.0), Val::Px(12.0), Val::Px(8.0), Val::Px(0.0)),
-                    ..default()
-                },
-                HudRoot,
-            )).with_children(|top| {
-                // Health section
-                top.spawn((
-                    Node {
-                        flex_direction: FlexDirection::Row,
-                        align_items: AlignItems::Center,
-                        column_gap: Val::Px(8.0),
-                        ..default()
-                    },
-                    HudRoot,
-                )).with_children(|health_sec| {
-                    health_sec.spawn((
-                        Node {
-                            width: Val::Px(220.0),
-                            height: Val::Px(22.0),
-                            border: UiRect::all(Val::Px(2.0)),
-                            ..default()
-                        },
-                        BorderColor(Color::srgb(0.3, 0.3, 0.3)),
-                        BackgroundColor(Color::srgb(0.2, 0.05, 0.05)),
-                        HudRoot,
-                    )).with_children(|hp_bg| {
-                        hp_bg.spawn((
-                            Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                ..default()
-                            },
-                            BackgroundColor(Color::srgb(0.0, 0.7, 0.15)),
-                            HudHealthBar,
-                            HudRoot,
-                        ));
-                    });
-                    health_sec.spawn((
-                        label("100/100", 15.0, Color::WHITE),
-                        HudHpText,
-                        HudRoot,
-                    ));
-                });
+            // ── Player Unit Frame (top-left) ────────────────────────
+            player_frame::spawn_player_frame(parent);
 
-                // Center: Level
-                top.spawn((
-                    label("Lv. 1", 22.0, Color::srgb(0.7, 0.5, 1.0)),
-                    HudLevelText,
-                    HudRoot,
-                ));
+            // ── Target Unit Frame (top-center) ──────────────────────
+            target_frame::spawn_target_frame(parent);
 
-                // Right: Wave + Gold + Dash
-                top.spawn((
-                    Node {
-                        flex_direction: FlexDirection::Column,
-                        align_items: AlignItems::End,
-                        row_gap: Val::Px(2.0),
-                        ..default()
-                    },
-                    HudRoot,
-                )).with_children(|right| {
-                    right.spawn((label("Wave 1", 20.0, Color::srgb(1.0, 0.7, 0.2)), HudWaveText, HudRoot));
-                    right.spawn((label("Gold: 0", 14.0, Color::srgb(1.0, 0.85, 0.0)), HudGoldText, HudRoot));
-                    right.spawn((label("Dash: ready", 13.0, Color::srgb(0.5, 0.8, 1.0)), HudDashText, HudRoot));
-                });
-            });
+            // ── XP Bar (bottom, above action bar) ───────────────────
+            spawn_xp_bar(parent);
 
-            // ── Bottom XP bar ──────────────────────────────────────
-            parent.spawn((
-                Node {
-                    width: Val::Percent(70.0),
-                    height: Val::Px(14.0),
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Px(56.0),
-                    left: Val::Percent(15.0),
-                    border: UiRect::all(Val::Px(1.0)),
-                    ..default()
-                },
-                BorderColor(Color::srgb(0.3, 0.3, 0.4)),
-                BackgroundColor(Color::srgb(0.1, 0.1, 0.15)),
-                HudRoot,
-            )).with_children(|xp_bg| {
-                xp_bg.spawn((
-                    Node {
-                        width: Val::Percent(0.0),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    BackgroundColor(Color::srgb(0.2, 0.5, 1.0)),
-                    HudXpBar,
-                    HudRoot,
-                ));
-            });
+            // ── Zone Name / Minimap (pulsing text, bottom-center) ───
+            spawn_zone_tracker(parent);
 
-            // ── Zone name ───────────────────────────────────────────
-            parent.spawn((
-                Node {
-                    width: Val::Percent(100.0),
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Px(40.0),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                HudRoot,
-            )).with_children(|zone| {
-                zone.spawn((label("", 18.0, Color::srgb(0.6, 0.8, 0.4)), HudZoneText, HudRoot));
-            });
+            // ── Interaction prompt (center) ─────────────────────────
+            spawn_prompt(parent);
 
-            // ── Interaction prompt ──────────────────────────────────
-            parent.spawn((
-                Node {
-                    width: Val::Percent(100.0),
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Percent(50.0),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                HudRoot,
-            )).with_children(|prompt| {
-                prompt.spawn((label("", 20.0, Color::srgb(1.0, 0.9, 0.4)), HudPromptText, HudRoot));
-            });
-
-            // ── Ability Hotbar ──────────────────────────────────────
-            spawn_hotbar(parent);
+            // ── Action Bar (bottom center) ──────────────────────────
+            ability_bar::spawn_action_bar(parent);
         });
 }
 
+/// Spawns the XP bar — blue gradient bar with text.
+fn spawn_xp_bar(parent: &mut ChildBuilder) {
+    parent
+        .spawn((
+            Node {
+                width: Val::Px(400.0),
+                height: Val::Px(16.0),
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(76.0),
+                left: Val::Percent(50.0),
+                margin: UiRect::left(Val::Px(-200.0)),
+                border: UiRect::all(Val::Px(1.0)),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            BorderColor(Color::srgb(0.25, 0.25, 0.35)),
+            BackgroundColor(Color::srgb(0.08, 0.08, 0.12)),
+            HudXpBar,
+        ))
+        .with_children(|xp_bg| {
+            // Fill
+            xp_bg.spawn((
+                Node {
+                    width: Val::Percent(0.0),
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                BackgroundColor(Color::srgb(0.25, 0.45, 0.95)),
+                HudXpBarFill,
+            ));
+            // Text overlay
+            xp_bg
+                .spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        position_type: PositionType::Absolute,
+                        flex_direction: FlexDirection::Column,
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    HudXpBarText,
+                ))
+                .with_children(|xp_text| {
+                    xp_text.spawn((
+                        label("XP: 0/100", 11.0, Color::srgb(0.7, 0.8, 1.0)),
+                        HudXpBarText,
+                    ));
+                });
+        });
+}
+
+/// Spawns the zone name / minimap area — pulsing colored text.
+fn spawn_zone_tracker(parent: &mut ChildBuilder) {
+    parent
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Px(24.0),
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(50.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                ..default()
+            },
+            HudZoneFrame,
+        ))
+        .with_children(|zone| {
+            zone.spawn((
+                label("", 16.0, Color::srgb(0.5, 0.75, 0.35)),
+                HudZoneText,
+            ));
+        });
+}
+
+/// Spawns the interaction prompt (center screen).
+fn spawn_prompt(parent: &mut ChildBuilder) {
+    parent
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                position_type: PositionType::Absolute,
+                top: Val::Percent(40.0),
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+
+                ..default()
+            },
+            HudRoot,
+        ))
+        .with_children(|prompt| {
+            prompt.spawn((
+                label("", 18.0, Color::srgb(1.0, 0.9, 0.4)),
+                HudPromptText,
+            ));
+        });
+}
+
+/// Despawns the entire HUD.
 pub fn despawn_hud(mut commands: Commands, hud: Query<Entity, With<HudRoot>>) {
     for entity in hud.iter() {
         commands.entity(entity).despawn_recursive();
     }
-}
-
-/// Spawns the ability hotbar at the bottom center.
-pub fn spawn_hotbar(parent: &mut ChildBuilder) {
-    parent.spawn((
-        Node {
-            width: Val::Percent(100.0),
-            height: Val::Px(44.0),
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(4.0),
-            flex_direction: FlexDirection::Row,
-            justify_content: JustifyContent::Center,
-            align_items: AlignItems::Center,
-            column_gap: Val::Px(6.0),
-            ..default()
-        },
-        HudRoot,
-    )).with_children(|bar| {
-        for (key, label_text, color) in [
-            ("LMB", "Attack", Color::srgb(0.4, 0.7, 1.0)),
-            ("RMB", "Spread", Color::srgb(0.9, 0.6, 0.2)),
-            ("Q", "Cast", Color::srgb(0.8, 0.3, 1.0)),
-            ("Shift", "Dash", Color::srgb(0.3, 0.8, 1.0)),
-        ] {
-            bar.spawn((
-                Node {
-                    width: Val::Px(80.0),
-                    height: Val::Px(40.0),
-                    flex_direction: FlexDirection::Column,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::Center,
-                    border: UiRect::all(Val::Px(1.0)),
-                    ..default()
-                },
-                BorderColor(Color::srgb(0.3, 0.3, 0.35)),
-                BackgroundColor(Color::srgb(0.12, 0.12, 0.15)),
-                HudRoot,
-                HudHotbarSlot,
-            )).with_children(|slot| {
-                slot.spawn((label(&format!("[{key}]"), 11.0, color), HudRoot));
-                slot.spawn((label(label_text, 13.0, Color::srgb(0.7, 0.7, 0.8)), HudRoot));
-            });
-        }
-    });
 }

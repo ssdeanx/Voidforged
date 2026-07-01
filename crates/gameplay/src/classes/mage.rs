@@ -95,6 +95,7 @@ pub fn cast_arcane_blast(
             position: Vec3::Y,
             amount: dmg as i32,
             is_crit: false,
+            damage_type: DamageType::Magic,
         });
         info!("Mage arcane blast hits for {}", dmg);
     }
