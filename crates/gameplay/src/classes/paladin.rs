@@ -3,7 +3,7 @@
 
 use bevy::prelude::*;
 use ir_core::*;
-use crate::classes::abilities::{self, ClassResource};
+use crate::classes::abilities::ClassResource;
 
 /// Resource config
 pub fn resource_config() -> ClassResource {
@@ -33,7 +33,8 @@ pub fn primary_righteous_strike(
             0.15,
             ProjectileOwner::Player,
             1.5,
-        ),
+        )
+        .with_hit_reaction(0.1, 0.15, 0.05),
         Transform {
             translation: transform.translation,
             rotation: transform.rotation,
@@ -133,6 +134,27 @@ pub fn tick_consecration(
 
         if field.lifetime <= 0.0 {
             commands.entity(field_entity).despawn();
+        }
+    }
+}
+
+// ── Holy Power Generation ────────────────────────────────────────────────
+
+/// Generates 1 Holy Power when the paladin deals damage (from hitbox processing).
+/// Called alongside the damage pipeline.
+pub fn paladin_holy_power_on_hit(
+    mut damage_events: EventReader<DamageEvent>,
+    mut player_query: Query<&mut ClassResource, (With<Player>, With<PlayerClass>)>,
+) {
+    let Ok(mut resource) = player_query.get_single_mut() else { return };
+    // Identify paladin by resource config: max=5, regen=0.5
+    if (resource.max - 5.0).abs() > 0.1 || (resource.regen_rate - 0.5).abs() > 0.1 {
+        return;
+    }
+    for event in damage_events.read() {
+        // Only from player-sourced damage to enemies
+        if event.damage_type == DamageType::Physical || event.damage_type == DamageType::Magic {
+            resource.current = (resource.current + 1.0).min(resource.max);
         }
     }
 }

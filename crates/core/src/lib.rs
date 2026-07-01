@@ -12,9 +12,11 @@ pub mod plugin;
 
 pub use components::{
     Ability, AbilityKind, AttackCooldown, CharacterClass, ClassAbilityId, CombatStats,
-    DashCooldown, Enemy, EnemyVariant, ExperienceGem, Health, Lifetime, Pickup, PickupKind, Player,
-    PlayerClass, PlayerName, Position, Projectile, ProjectileOwner, RenderInfo, Room, RoomEntity,
-    Stamina, Team, Velocity, Weapon, WeaponKind,
+    DashCooldown, DashTrail, Enemy, EnemyProjectileMarker, EnemyVariant, ExperienceGem,
+    Frozen, Health, HitStop, HitStun, Knockback, Lifetime, MagicProjectile, Pickup,
+    PickupKind, Player, PlayerClass, PlayerName, Position, Projectile, ProjectileOwner,
+    RenderInfo, RespawnTimer, Room, RoomEntity, Stamina, Stun, Team, TelegraphIndicator,
+    Velocity, Weapon, WeaponKind,
 };
 pub use events::*;
 pub use hitbox::*;

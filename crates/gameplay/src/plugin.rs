@@ -25,7 +25,6 @@ impl Plugin for GameplayPlugin {
             // ── Player movement ─────────────────────────────────────
             .add_systems(Update, (
                 player::read_player_input,
-                player::player_dash,
                 player::player_movement,
                 player::apply_player_velocity,
             ).run_if(can_move))
@@ -60,7 +59,14 @@ impl Plugin for GameplayPlugin {
                 classes::hunter::tick_trap_slow,
             ).run_if(has_combat))
 
-            // ── Class buff systems ─────────────────────────────
+            // ── Class resource generation ────────────────────────
+            .add_systems(Update, (
+                classes::warrior::warrior_rage_on_damage,
+                classes::warrior::warrior_rage_on_take_damage,
+                classes::paladin::paladin_holy_power_on_hit,
+            ).run_if(has_combat))
+
+            // ── Class buff systems ─────────────────────────────────
             .add_systems(Update, (
                 classes::paladin::apply_holy_light,
                 classes::warrior::tick_shield_block,
@@ -70,6 +76,7 @@ impl Plugin for GameplayPlugin {
             // ── Enemy systems ───────────────────────────────────────
             .add_systems(Update, (
                 enemy::enemy_ai,
+                enemy::boss_phase_ai,
                 enemy::apply_enemy_velocity,
                 enemy::enemy_melee_attack,
                 enemy::enemy_ranged_attack,
@@ -81,9 +88,25 @@ impl Plugin for GameplayPlugin {
                 combat::projectile_hit,
                 combat::projectile_hit_player,
                 combat::apply_damage,
+                combat::apply_knockback,
+                combat::apply_stun_movement_block,
                 loot::spawn_loot_from_table,
                 combat::handle_death,
             ).chain().run_if(has_combat))
+
+            // ── Status effect tick systems ──────────────────────────
+            .add_systems(Update, (
+                combat::tick_frozen,
+                combat::tick_stun,
+                combat::tick_hit_stun,
+                combat::tick_hit_stop,
+            ).run_if(has_combat))
+
+            // ── Hitbox processing ──────────────────────────────────
+            .add_systems(Update, (
+                combat::process_hitboxes,
+                combat::process_enemy_hitboxes,
+            ).run_if(has_combat))
 
             // ── Pickup systems ──────────────────────────────────────
             .add_systems(Update, (
@@ -103,12 +126,6 @@ impl Plugin for GameplayPlugin {
             .add_systems(Update, (
                 equipment::handle_equip_event,
                 equipment::handle_unequip_event,
-            ).run_if(has_combat))
-
-            // ── Hitbox processing ──────────────────────────────────
-            .add_systems(Update, (
-                combat::process_hitboxes,
-                combat::process_enemy_hitboxes,
             ).run_if(has_combat))
 
             // ── Death & Respawn ────────────────────────────────────

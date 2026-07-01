@@ -57,3 +57,72 @@ impl ItemRarity {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rarity_count() {
+        assert_eq!(ItemRarity::Common as u8, 0);
+        assert_eq!(ItemRarity::Uncommon as u8, 1);
+        assert_eq!(ItemRarity::Rare as u8, 2);
+        assert_eq!(ItemRarity::Epic as u8, 3);
+        assert_eq!(ItemRarity::Legendary as u8, 4);
+    }
+
+    #[test]
+    fn test_rarity_color_not_black() {
+        // All rarities should produce a non-zero color
+        for rarity in &[ItemRarity::Common, ItemRarity::Uncommon, ItemRarity::Rare, ItemRarity::Epic, ItemRarity::Legendary] {
+            let c = rarity.color();
+            let sum = c.r() + c.g() + c.b();
+            assert!(sum > 0.0, "color sum for {:?} should be > 0", rarity);
+        }
+    }
+
+    #[test]
+    fn test_rarity_hex_distinct() {
+        let mut hexes = std::collections::HashSet::new();
+        for rarity in &[ItemRarity::Common, ItemRarity::Uncommon, ItemRarity::Rare, ItemRarity::Epic, ItemRarity::Legendary] {
+            assert!(hexes.insert(rarity.color_hex()), "duplicate hex for {:?}", rarity);
+        }
+    }
+
+    #[test]
+    fn test_stat_multiplier_increasing() {
+        let rarities = [ItemRarity::Common, ItemRarity::Uncommon, ItemRarity::Rare, ItemRarity::Epic, ItemRarity::Legendary];
+        for w in rarities.windows(2) {
+            assert!(w[0].stat_multiplier() < w[1].stat_multiplier(),
+                "{:?} multiplier ({}) should be < {:?} multiplier ({})",
+                w[0], w[0].stat_multiplier(), w[1], w[1].stat_multiplier());
+        }
+    }
+
+    #[test]
+    fn test_stat_multiplier_specific_values() {
+        assert!((ItemRarity::Common.stat_multiplier() - 1.0).abs() < f32::EPSILON);
+        assert!((ItemRarity::Uncommon.stat_multiplier() - 1.3).abs() < f32::EPSILON);
+        assert!((ItemRarity::Rare.stat_multiplier() - 1.6).abs() < f32::EPSILON);
+        assert!((ItemRarity::Epic.stat_multiplier() - 2.0).abs() < f32::EPSILON);
+        assert!((ItemRarity::Legendary.stat_multiplier() - 2.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_label_matches_enum_name() {
+        assert_eq!(ItemRarity::Common.label(), "Common");
+        assert_eq!(ItemRarity::Uncommon.label(), "Uncommon");
+        assert_eq!(ItemRarity::Rare.label(), "Rare");
+        assert_eq!(ItemRarity::Epic.label(), "Epic");
+        assert_eq!(ItemRarity::Legendary.label(), "Legendary");
+    }
+
+    #[test]
+    fn test_clone_and_copy() {
+        let a = ItemRarity::Epic;
+        let b = a; // Copy
+        assert_eq!(a, b);
+        let c = a.clone();
+        assert_eq!(a, c);
+    }
+}

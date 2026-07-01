@@ -6,6 +6,7 @@ pub mod assets;
 pub mod spawn;
 pub mod hud;
 pub mod effects;
+pub mod asset_pipeline;
 pub mod plugin;
 
 pub use plugin::RenderingPlugin;

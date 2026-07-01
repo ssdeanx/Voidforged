@@ -2,7 +2,8 @@
 
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::items::{EquipSlot, ItemInstance};
+use crate::items::{EquipSlot, ItemInstance, StatType};
+use crate::resources::ItemDatabase;
 
 /// Currently equipped items across 8 gear slots.
 #[derive(Debug, Clone, Component, Serialize, Deserialize)]
@@ -73,7 +74,38 @@ impl Equipment {
     }
 
     /// Applies all equipped item stats to a CombatStats struct.
-    pub fn apply_stats(&self, _stats: &mut crate::components::CombatStats) {
-        // TODO: Iterate equipped items, sum StatMod values, apply to stats
+    /// Looks up each ItemInstance's def_id in ItemDatabase and sums StatMod values.
+    /// Returns a vec of applied stat changes for logging.
+    pub fn apply_stats(&self, db: &ItemDatabase, stats: &mut crate::components::CombatStats) -> Vec<String> {
+        let mut changes: Vec<String> = Vec::new();
+        let slots = [
+            &self.weapon, &self.offhand, &self.helmet, &self.chest,
+            &self.boots, &self.ring, &self.amulet, &self.trinket,
+        ];
+
+        for item_opt in slots {
+            if let Some(item) = item_opt {
+                if let Some(def) = db.get(&item.def_id) {
+                    for mod_ in &def.base_stats {
+                        match mod_.stat {
+                            StatType::DamageBonus => stats.damage_bonus += mod_.value,
+                            StatType::AttackSpeedBonus => stats.attack_speed_bonus += mod_.value,
+                            StatType::Armor => stats.armor += mod_.value,
+                            StatType::MaxHealth => stats.max_health_bonus += mod_.value,
+                            StatType::MoveSpeed => stats.move_speed_bonus += mod_.value,
+                            StatType::CritChance => stats.crit_chance += mod_.value,
+                            StatType::CritMultiplier => stats.crit_multiplier += mod_.value,
+                            StatType::DodgeChance => stats.dodge_chance += mod_.value,
+                            StatType::Lifesteal => stats.lifesteal += mod_.value,
+                            StatType::PickupRadius => stats.pickup_radius += mod_.value,
+                            StatType::ManaRegen => {} // Not present in CombatStats
+                            StatType::ArmorPenetration => stats.armor_penetration += mod_.value,
+                        }
+                        changes.push(format!("{} +{}", mod_.stat.display_name(), mod_.value));
+                    }
+                }
+            }
+        }
+        changes
     }
 }

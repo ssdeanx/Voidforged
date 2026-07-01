@@ -1,5 +1,8 @@
+//! Pickup systems — XP gem magnet, health/gold collection, item pickup from ground.
+
 use bevy::prelude::*;
 use ir_core::*;
+use crate::loot::ItemDrop;
 
 /// Moves experience gems toward player when within magnet radius.
 pub fn gem_magnet(
@@ -71,6 +74,51 @@ pub fn collect_gold_pickups(
         if dist < 1.5 {
             meta.gold += 10;
             commands.entity(pickup_entity).despawn();
+        }
+    }
+}
+
+/// Picks up nearby ItemDrop entities when the player presses F.
+/// Adds the item to the player's inventory and despawns the drop.
+pub fn item_pickup_interaction(
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut player_query: Query<(&Transform, &mut Inventory), With<Player>>,
+    drop_query: Query<(Entity, &Transform, &ItemDrop)>,
+) {
+    if !keyboard.just_pressed(KeyCode::KeyF) {
+        return;
+    }
+
+    let Ok((player_tf, mut inventory)) = player_query.get_single_mut() else {
+        return;
+    };
+
+    let player_pos = player_tf.translation;
+    let pickup_range = 2.0;
+    let mut nearest: Option<(Entity, f32)> = None;
+
+    // Find the nearest pickup within range
+    for (drop_entity, drop_tf, _drop) in drop_query.iter() {
+        let dist = drop_tf.translation.distance(player_pos);
+        if dist < pickup_range {
+            match nearest {
+                Some((_, d)) if dist < d => nearest = Some((drop_entity, dist)),
+                None => nearest = Some((drop_entity, dist)),
+                _ => {}
+            }
+        }
+    }
+
+    if let Some((target, _)) = nearest {
+        if let Ok((_, _, drop)) = drop_query.get(target) {
+            let item = ItemInstance::new(&drop.def_id);
+            if inventory.add_item(item) {
+                commands.entity(target).despawn();
+                info!("Picked up: {}", drop.def_id);
+            } else {
+                warn!("Inventory full — cannot pick up {}", drop.def_id);
+            }
         }
     }
 }

@@ -3,6 +3,10 @@ name = "ir-server"
 version.workspace = true
 edition.workspace = true
 
+[features]
+default = ["multiplayer"]
+multiplayer = ["ir-network/multiplayer", "dep:tungstenite", "dep:uuid"]
+
 [dependencies]
 bevy = { workspace = true }
 ir-core = { path = "../core" }
@@ -10,3 +14,7 @@ ir-gameplay = { path = "../gameplay" }
 ir-procedural = { path = "../procedural" }
 ir-progression = { path = "../progression" }
 ir-network = { path = "../network" }
+
+# Networking
+tungstenite = { version = "0.26", optional = true }
+uuid = { version = "1", features = ["v4", "serde"], optional = true }

@@ -1,3 +1,6 @@
+//! Wave-based enemy spawning system — spawns enemies in waves around the player,
+//! with escalating difficulty and enemy variety.
+
 use bevy::prelude::*;
 use ir_core::*;
 use rand::Rng;

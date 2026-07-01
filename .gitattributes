@@ -1,0 +1,24 @@
+# Rust conventions
+*.rs       text diff=rust
+*.toml     text
+*.lock     text
+*.md       text
+*.wgsl     text
+*.ron      text
+*.glb      binary
+*.gltf     text
+*.png      binary
+*.jpg      binary
+*.wav      binary
+*.ogg      binary
+*.mp3      binary
+
+# Auto-detect text files
+*           text=auto
+
+# Git generated diff headers
+*.rs        diff=rust
+
+# Linguist overrides
+Cargo.lock  linguist-generated=true
+target/     linguist-generated=true

@@ -72,20 +72,29 @@ impl Plugin for RenderingPlugin {
             .add_systems(Update, (
                 camera::follow_player.run_if(in_state(ir_core::AppState::World)),
                 camera::cursor_to_world.run_if(in_state(ir_core::AppState::World)),
-                hud::update_health_bar.run_if(in_state(ir_core::AppState::World)),
+            ))
+            .add_systems(Update, (
+                hud::update_player_health.run_if(in_state(ir_core::AppState::World)),
+                hud::update_resource_bar.run_if(in_state(ir_core::AppState::World)),
+                hud::update_stamina_bar.run_if(in_state(ir_core::AppState::World)),
                 hud::update_xp_bar.run_if(in_state(ir_core::AppState::World)),
-                hud::update_level_text.run_if(in_state(ir_core::AppState::World)),
-                hud::update_gold_text.run_if(in_state(ir_core::AppState::World)),
-                hud::update_zone_text.run_if(in_state(ir_core::AppState::World)),
+                hud::update_target_frame.run_if(in_state(ir_core::AppState::World)),
+                hud::update_zone_tracker.run_if(in_state(ir_core::AppState::World)),
                 hud::update_prompt_text.run_if(in_state(ir_core::AppState::World)),
+                hud::update_player_frame_class.run_if(in_state(ir_core::AppState::World)),
+                hud::update_dash_text.run_if(in_state(ir_core::AppState::World)),
+                hud::update_gold_text.run_if(in_state(ir_core::AppState::World)),
+            ))
+            .add_systems(Update, (
+                hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::World)),
+                hud::update_damage_numbers.run_if(in_state(ir_core::AppState::World)),
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::World)),
                 assign_enemy_mesh.run_if(in_state(ir_core::AppState::World)),
                 assign_pickup_mesh.run_if(in_state(ir_core::AppState::World)),
                 assign_shadow.run_if(in_state(ir_core::AppState::World)),
                 rotate_billboards.run_if(in_state(ir_core::AppState::World)),
                 cleanup_lifetime.run_if(in_state(ir_core::AppState::World)),
-                ),
-                )
+            ))
             // Dungeon — combat instances
             .add_systems(OnEnter(ir_core::AppState::Dungeon), (
                 spawn::cleanup_world,
@@ -95,12 +104,23 @@ impl Plugin for RenderingPlugin {
                 camera::follow_player.run_if(in_state(ir_core::AppState::Dungeon)),
                 camera::cursor_to_world.run_if(in_state(ir_core::AppState::Dungeon)),
                 camera::apply_screen_shake.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_health_bar.run_if(in_state(ir_core::AppState::Dungeon)),
+            ))
+            .add_systems(Update, (
+                hud::update_player_health.run_if(in_state(ir_core::AppState::Dungeon)),
+                hud::update_resource_bar.run_if(in_state(ir_core::AppState::Dungeon)),
+                hud::update_stamina_bar.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_xp_bar.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_level_text.run_if(in_state(ir_core::AppState::Dungeon)),
+                hud::update_target_frame.run_if(in_state(ir_core::AppState::Dungeon)),
+                hud::update_zone_tracker.run_if(in_state(ir_core::AppState::Dungeon)),
+                hud::update_prompt_text.run_if(in_state(ir_core::AppState::Dungeon)),
+                hud::update_player_frame_class.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_dash_text.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_gold_text.run_if(in_state(ir_core::AppState::Dungeon)),
+            ))
+            .add_systems(Update, (
                 hud::spawn_damage_numbers.run_if(in_state(ir_core::AppState::Dungeon)),
+                hud::update_damage_numbers.run_if(in_state(ir_core::AppState::Dungeon)),
+                hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::Dungeon)),
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::Dungeon)),
                 assign_enemy_mesh.run_if(in_state(ir_core::AppState::Dungeon)),
                 assign_pickup_mesh.run_if(in_state(ir_core::AppState::Dungeon)),
@@ -121,10 +141,20 @@ impl Plugin for RenderingPlugin {
                 camera::follow_player.run_if(in_state(ir_core::AppState::Playing)),
                 camera::cursor_to_world.run_if(in_state(ir_core::AppState::Playing)),
                 camera::apply_screen_shake.run_if(in_state(ir_core::AppState::Playing)),
-                hud::update_health_bar.run_if(in_state(ir_core::AppState::Playing)),
+            ))
+            .add_systems(Update, (
+                hud::update_player_health.run_if(in_state(ir_core::AppState::Playing)),
+                hud::update_resource_bar.run_if(in_state(ir_core::AppState::Playing)),
+                hud::update_stamina_bar.run_if(in_state(ir_core::AppState::Playing)),
                 hud::update_xp_bar.run_if(in_state(ir_core::AppState::Playing)),
-                hud::update_level_text.run_if(in_state(ir_core::AppState::Playing)),
+                hud::update_target_frame.run_if(in_state(ir_core::AppState::Playing)),
+                hud::update_zone_tracker.run_if(in_state(ir_core::AppState::Playing)),
+                hud::update_player_frame_class.run_if(in_state(ir_core::AppState::Playing)),
                 hud::update_gold_text.run_if(in_state(ir_core::AppState::Playing)),
+            ))
+            .add_systems(Update, (
+                hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::Playing)),
+                hud::update_damage_numbers.run_if(in_state(ir_core::AppState::Playing)),
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::Playing)),
                 assign_enemy_mesh.run_if(in_state(ir_core::AppState::Playing)),
                 assign_pickup_mesh.run_if(in_state(ir_core::AppState::Playing)),

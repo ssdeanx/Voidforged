@@ -441,52 +441,6 @@ impl Default for CombatStats {
     }
 }
 
-/// A piece of equipment with stat modifiers.
-#[derive(Component, Debug, Clone)]
-pub struct Equipment {
-    pub slots: [Option<EquipmentItem>; 4], // weapon, offhand, armor, accessory
-}
-
-impl Default for Equipment {
-    fn default() -> Self {
-        Self { slots: [None, None, None, None] }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum EquipmentSlot {
-    Weapon = 0,
-    Offhand = 1,
-    Armor = 2,
-    Accessory = 3,
-}
-
-/// A equippable item with stat bonuses.
-#[derive(Debug, Clone)]
-pub struct EquipmentItem {
-    pub name: String,
-    pub slot: EquipmentSlot,
-    pub damage_bonus: f32,
-    pub attack_speed_bonus: f32,
-    pub armor_bonus: f32,
-    pub max_health_bonus: f32,
-    pub move_speed_bonus: f32,
-    pub lifesteal: f32,
-    pub crit_chance_bonus: f32,
-}
-
-impl EquipmentItem {
-    pub fn apply(&self, stats: &mut CombatStats) {
-        stats.damage_bonus += self.damage_bonus;
-        stats.attack_speed_bonus += self.attack_speed_bonus;
-        stats.armor += self.armor_bonus;
-        stats.max_health_bonus += self.max_health_bonus;
-        stats.move_speed_bonus += self.move_speed_bonus;
-        stats.lifesteal += self.lifesteal;
-        stats.crit_chance += self.crit_chance_bonus;
-    }
-}
-
 // ============================================================================
 // Spatial Components
 // ============================================================================
@@ -615,5 +569,119 @@ impl Default for DashCooldown {
             duration: 0.25,
             fired_dash_attack: false,
         }
+    }
+}
+
+// ============================================================================
+// Knockback System
+// ============================================================================
+
+/// Separate velocity for knockback, with natural damping/decay.
+/// Applied on top of normal movement so knockback doesn't override player input.
+#[derive(Component, Debug, Clone)]
+pub struct Knockback {
+    pub velocity: Vec3,
+    pub damping: f32,
+}
+
+impl Knockback {
+    pub fn new(velocity: Vec3, damping: f32) -> Self {
+        Self { velocity, damping }
+    }
+}
+
+// ============================================================================
+// Status Effects
+// ============================================================================
+
+/// Frozen — reduces move speed by 60% for the duration.
+/// Applied by Frostbolt (Mage secondary).
+#[derive(Component, Debug, Clone)]
+pub struct Frozen {
+    pub remaining: f32,
+}
+
+impl Frozen {
+    pub fn new(duration: f32) -> Self {
+        Self { remaining: duration }
+    }
+}
+
+/// Stun — prevents movement and actions for the duration.
+/// Applied by heavy hits (charger, boss, critical hits).
+#[derive(Component, Debug, Clone)]
+pub struct Stun {
+    pub remaining: f32,
+}
+
+impl Stun {
+    pub fn new(duration: f32) -> Self {
+        Self { remaining: duration }
+    }
+}
+
+/// HitStun — brief movement interrupt on damage taken.
+/// Freezes entity's movement velocity briefly (stagger).
+#[derive(Component, Debug, Clone)]
+pub struct HitStun {
+    pub remaining: f32,
+}
+
+impl HitStun {
+    pub fn new(duration: f32) -> Self {
+        Self { remaining: duration }
+    }
+}
+
+/// HitStop — brief pause on hit for game feel (local to the hit entity).
+#[derive(Component, Debug, Clone)]
+pub struct HitStop {
+    pub remaining: f32,
+}
+
+impl HitStop {
+    pub fn new(duration: f32) -> Self {
+        Self { remaining: duration }
+    }
+}
+
+// ============================================================================
+// Telegraph Visual
+// ============================================================================
+
+/// Visual telegraph indicator spawned during enemy windup.
+#[derive(Component, Debug, Clone)]
+pub struct TelegraphIndicator {
+    pub remaining: f32,
+    pub target_entity: Entity,
+}
+
+impl TelegraphIndicator {
+    pub fn new(duration: f32, target: Entity) -> Self {
+        Self { remaining: duration, target_entity: target }
+    }
+}
+
+/// Marker component for magical projectiles (Mage fireballs, frostbolts).
+#[derive(Component, Debug, Clone)]
+pub struct MagicProjectile;
+
+/// Marker component for enemy projectiles, used for visual distinction.
+#[derive(Component, Debug, Clone)]
+pub struct EnemyProjectileMarker;
+
+/// Marker for dash trail particle entity.
+#[derive(Component, Debug, Clone)]
+pub struct DashTrail;
+
+/// Respawn timer component for dead players awaiting respawn.
+#[derive(Component, Debug, Clone)]
+pub struct RespawnTimer {
+    pub remaining: f32,
+}
+
+impl RespawnTimer {
+    pub fn new(duration: f32) -> Self {
+        Self { remaining: duration }
     }
 }
