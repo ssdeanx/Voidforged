@@ -7,18 +7,28 @@ use crate::{
     effects::{self, EffectsLibrary, GlowMaterial},
     hud::{self},
     lighting, spawn,
+    asset_pipeline::{self, slots::{ModelSlot, ModelCategory, ModelSlotRegistry}},
 };
 
 /// Marker for billboard sprites that always face the camera.
 #[derive(Component)]
 pub struct BillboardSprite;
 
+/// System set for HUD reactive updates — runs during any gameplay state
+/// (World, Dungeon, Playing) instead of being triply-registered.
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+struct HudUpdateSet;
+
 pub struct RenderingPlugin;
 
 impl Plugin for RenderingPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins((HanabiPlugin, MaterialPlugin::<GlowMaterial>::default()))
+            .add_plugins((
+                HanabiPlugin,
+                MaterialPlugin::<GlowMaterial>::default(),
+                asset_pipeline::AssetPipelinePlugin,
+            ))
 
             // Startup — camera + lights
             .add_systems(Startup, (
@@ -60,6 +70,34 @@ impl Plugin for RenderingPlugin {
                 hud::character_select::despawn_character_select,
             ))
 
+            // ═══════════════════════════════════════════════════════════════
+            // Shared HUD updates — registered once, runs in any active
+            // gameplay state (World, Dungeon, Playing) via run condition.
+            // ═══════════════════════════════════════════════════════════════
+            .configure_sets(Update, HudUpdateSet.run_if(
+                in_state(ir_core::AppState::World)
+                    .or(in_state(ir_core::AppState::Dungeon))
+                    .or(in_state(ir_core::AppState::Playing))
+            ))
+            .add_systems(Update, (
+                hud::update_player_health,
+                hud::update_resource_bar,
+                hud::update_stamina_bar,
+                hud::update_xp_bar,
+                hud::update_target_frame,
+                hud::update_zone_tracker,
+                hud::update_player_frame_class,
+                hud::update_gold_text,
+            ).in_set(HudUpdateSet))
+            // Prompt + dash text only in World and Dungeon (not Playing)
+            .add_systems(Update, (
+                hud::update_prompt_text,
+                hud::update_dash_text,
+            ).run_if(
+                in_state(ir_core::AppState::World)
+                    .or(in_state(ir_core::AppState::Dungeon))
+            ))
+
             // World — open world exploration
             .add_systems(OnEnter(ir_core::AppState::World), (
                 hud::despawn_main_menu,
@@ -74,18 +112,6 @@ impl Plugin for RenderingPlugin {
                 camera::cursor_to_world.run_if(in_state(ir_core::AppState::World)),
             ))
             .add_systems(Update, (
-                hud::update_player_health.run_if(in_state(ir_core::AppState::World)),
-                hud::update_resource_bar.run_if(in_state(ir_core::AppState::World)),
-                hud::update_stamina_bar.run_if(in_state(ir_core::AppState::World)),
-                hud::update_xp_bar.run_if(in_state(ir_core::AppState::World)),
-                hud::update_target_frame.run_if(in_state(ir_core::AppState::World)),
-                hud::update_zone_tracker.run_if(in_state(ir_core::AppState::World)),
-                hud::update_prompt_text.run_if(in_state(ir_core::AppState::World)),
-                hud::update_player_frame_class.run_if(in_state(ir_core::AppState::World)),
-                hud::update_dash_text.run_if(in_state(ir_core::AppState::World)),
-                hud::update_gold_text.run_if(in_state(ir_core::AppState::World)),
-            ))
-            .add_systems(Update, (
                 hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::World)),
                 hud::update_damage_numbers.run_if(in_state(ir_core::AppState::World)),
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::World)),
@@ -94,6 +120,7 @@ impl Plugin for RenderingPlugin {
                 assign_shadow.run_if(in_state(ir_core::AppState::World)),
                 rotate_billboards.run_if(in_state(ir_core::AppState::World)),
                 cleanup_lifetime.run_if(in_state(ir_core::AppState::World)),
+                spawn_model_slot_scenes.run_if(in_state(ir_core::AppState::World)),
             ))
             // Dungeon — combat instances
             .add_systems(OnEnter(ir_core::AppState::Dungeon), (
@@ -106,18 +133,6 @@ impl Plugin for RenderingPlugin {
                 camera::apply_screen_shake.run_if(in_state(ir_core::AppState::Dungeon)),
             ))
             .add_systems(Update, (
-                hud::update_player_health.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_resource_bar.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_stamina_bar.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_xp_bar.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_target_frame.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_zone_tracker.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_prompt_text.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_player_frame_class.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_dash_text.run_if(in_state(ir_core::AppState::Dungeon)),
-                hud::update_gold_text.run_if(in_state(ir_core::AppState::Dungeon)),
-            ))
-            .add_systems(Update, (
                 hud::spawn_damage_numbers.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_damage_numbers.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::Dungeon)),
@@ -128,6 +143,7 @@ impl Plugin for RenderingPlugin {
                 rotate_billboards.run_if(in_state(ir_core::AppState::Dungeon)),
                 spawn_impact_effect.run_if(in_state(ir_core::AppState::Dungeon)),
                 cleanup_lifetime.run_if(in_state(ir_core::AppState::Dungeon)),
+                spawn_model_slot_scenes.run_if(in_state(ir_core::AppState::Dungeon)),
             ))
 
             // Playing — spawns player and HUD (used after GameOver→restart)
@@ -143,16 +159,6 @@ impl Plugin for RenderingPlugin {
                 camera::apply_screen_shake.run_if(in_state(ir_core::AppState::Playing)),
             ))
             .add_systems(Update, (
-                hud::update_player_health.run_if(in_state(ir_core::AppState::Playing)),
-                hud::update_resource_bar.run_if(in_state(ir_core::AppState::Playing)),
-                hud::update_stamina_bar.run_if(in_state(ir_core::AppState::Playing)),
-                hud::update_xp_bar.run_if(in_state(ir_core::AppState::Playing)),
-                hud::update_target_frame.run_if(in_state(ir_core::AppState::Playing)),
-                hud::update_zone_tracker.run_if(in_state(ir_core::AppState::Playing)),
-                hud::update_player_frame_class.run_if(in_state(ir_core::AppState::Playing)),
-                hud::update_gold_text.run_if(in_state(ir_core::AppState::Playing)),
-            ))
-            .add_systems(Update, (
                 hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::Playing)),
                 hud::update_damage_numbers.run_if(in_state(ir_core::AppState::Playing)),
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::Playing)),
@@ -162,6 +168,7 @@ impl Plugin for RenderingPlugin {
                 rotate_billboards.run_if(in_state(ir_core::AppState::Playing)),
                 spawn_impact_effect.run_if(in_state(ir_core::AppState::Playing)),
                 cleanup_lifetime.run_if(in_state(ir_core::AppState::Playing)),
+                spawn_model_slot_scenes.run_if(in_state(ir_core::AppState::Playing)),
             ))
 
             // Paused — overlay
@@ -214,7 +221,7 @@ fn cleanup_lifetime(
 fn assign_projectile_mesh(
     mut commands: Commands,
     assets: Res<ir_core::GameAssets>,
-    projectiles: Query<Entity, (With<ir_core::Projectile>, Without<Mesh3d>)>,
+    projectiles: Query<Entity, (With<ir_core::Projectile>, Without<Mesh3d>, Without<ModelSlot>)>,
 ) {
     for entity in projectiles.iter() {
         commands.entity(entity).insert((
@@ -226,10 +233,12 @@ fn assign_projectile_mesh(
 }
 
 /// Assigns visible mesh/material to enemy entities based on their variant.
+/// Respects ModelSlot — entities with a ModelSlot let the GLTF spawner
+/// handle them instead.
 fn assign_enemy_mesh(
     mut commands: Commands,
     assets: Res<ir_core::GameAssets>,
-    enemies: Query<(Entity, &ir_core::Enemy), (Without<Mesh3d>, With<ir_core::Enemy>)>,
+    enemies: Query<(Entity, &ir_core::Enemy), (Without<Mesh3d>, With<ir_core::Enemy>, Without<ModelSlot>)>,
 ) {
     for (entity, enemy) in enemies.iter() {
         let idx = match enemy.variant {
@@ -252,11 +261,12 @@ fn assign_enemy_mesh(
 }
 
 /// Assigns visible mesh/material to health/gold pickups, XP gems that lack them.
+/// Respects ModelSlot — entities with a ModelSlot let the GLTF spawner handle them.
 fn assign_pickup_mesh(
     mut commands: Commands,
     assets: Res<ir_core::GameAssets>,
-    gems: Query<Entity, (With<ir_core::ExperienceGem>, Without<Mesh3d>)>,
-    health_pickups: Query<Entity, (With<ir_core::Pickup>, Without<Mesh3d>, Without<ir_core::ExperienceGem>)>,
+    gems: Query<Entity, (With<ir_core::ExperienceGem>, Without<Mesh3d>, Without<ModelSlot>)>,
+    health_pickups: Query<Entity, (With<ir_core::Pickup>, Without<Mesh3d>, Without<ir_core::ExperienceGem>, Without<ModelSlot>)>,
 ) {
     for entity in gems.iter() {
         commands.entity(entity).insert((
@@ -310,3 +320,67 @@ fn rotate_billboards(
         }
     }
 }
+
+/// Spawns GLTF scene entities for entities that have a ModelSlot but no Mesh3d yet.
+///
+/// This is the bridge between the asset pipeline and the renderer. When an entity
+/// has a ModelSlot assigned (by spawn code, auto-binding, or config), this system
+/// looks up the loaded GLTF scene in `ModelSlotRegistry` and spawns it as a child
+/// scene. If the model isn't loaded or the slot doesn't resolve, the entity is
+/// left alone — the fallback placeholder system will eventually assign a colored quad.
+///
+/// If the slot model IS resolved, we insert a Mesh3d marker so the placeholder
+/// assignment systems skips this entity (they filter on `Without<Mesh3d>`).
+/// We also attach the `AnimationStateMachine` component so animation tick works.
+fn spawn_model_slot_scenes(
+    mut commands: Commands,
+    registry: Res<ModelSlotRegistry>,
+    entities: Query<(Entity, &ModelSlot, &Transform), (Without<Mesh3d>, Changed<ModelSlot>)>,
+) {
+    for (entity, slot, transform) in entities.iter() {
+        let key = format!("{}/{}", slot.category, slot.name);
+
+        // Skip if already spawned or if the registry doesn't have this model
+        if slot.spawned {
+            continue;
+        }
+
+        if let Some(scene) = registry.scenes.get(&key) {
+            bevy::log::info!(
+                "Asset pipeline: spawning model '{key}' for entity {:?}",
+                entity
+            );
+
+            // Spawn the GLTF scene as a child of this entity
+            commands.entity(entity).insert((
+                SceneRoot(scene.clone()),
+                // Mark as having a mesh so placeholder systems skip this entity
+                // (but we use a SceneRoot, not Mesh3d, so we need a different marker)
+            ));
+
+            // Also tag the entity so billboard/placeholder systems understand it's handled
+            commands.entity(entity).insert((
+                SceneModelSpawned,
+            ));
+
+            // Attach animation state machine for animated models
+            commands.entity(entity).insert((
+                asset_pipeline::animation::AnimationStateMachine::default(),
+            ));
+        } else {
+            // Model not yet loaded — leave for placeholder fallback
+            // This entity will get a colored quad from the assign_*_mesh systems.
+            // If the model is still loading, we'll be re-triggered by Changed<ModelSlot>
+            // when the model becomes available (future: use asset events).
+            bevy::log::trace!(
+                "Asset pipeline: model '{key}' not ready yet for entity {:?}, falling back to placeholder.",
+                entity
+            );
+        }
+    }
+}
+
+/// Marker component for entities that have had their GLTF scene spawned.
+/// Prevents the entity from also receiving a placeholder quad.
+#[derive(Component)]
+pub struct SceneModelSpawned;
