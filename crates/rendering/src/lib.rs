@@ -4,6 +4,8 @@ pub mod camera;
 pub mod lighting;
 pub mod assets;
 pub mod spawn;
+pub mod hud;
+pub mod effects;
 pub mod plugin;
 
 pub use plugin::RenderingPlugin;

@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 use ir_core::*;
 
-/// Reads keyboard input into the PlayerInput resource.
+/// Reads keyboard and mouse input into the PlayerInput resource.
 pub fn read_player_input(
     keyboard: Res<ButtonInput<KeyCode>>,
+    mouse: Res<ButtonInput<MouseButton>>,
     mut input: ResMut<PlayerInput>,
 ) {
-    // Direction from WASD/arrows
     let mut dir = Vec2::ZERO;
     if keyboard.pressed(KeyCode::KeyW) || keyboard.pressed(KeyCode::ArrowUp) {
         dir.y += 1.0;
@@ -21,25 +21,59 @@ pub fn read_player_input(
         dir.x += 1.0;
     }
     input.direction = dir.clamp_length_max(1.0);
-    input.primary_attack = keyboard.pressed(KeyCode::Space) || keyboard.pressed(KeyCode::Enter);
-    input.dodge = keyboard.just_pressed(KeyCode::ShiftLeft) || keyboard.just_pressed(KeyCode::ShiftRight);
+    input.primary_attack = mouse.pressed(MouseButton::Left);
+    input.secondary_attack = mouse.pressed(MouseButton::Right);
+    input.cast = keyboard.just_pressed(KeyCode::KeyQ);
+    input.dodge = keyboard.just_pressed(KeyCode::ShiftLeft)
+        || keyboard.just_pressed(KeyCode::ShiftRight);
     input.pause = keyboard.just_pressed(KeyCode::Escape);
 }
 
-/// Handles player movement from input.
-pub fn player_movement(
-    _time: Res<Time>,
-    input: Res<PlayerInput>,
-    mut query: Query<(&mut Velocity, &CombatStats), With<Player>>,
+/// Applies Equipment bonuses to CombatStats when a new run starts.
+pub fn apply_equipment(
+    mut player_query: Query<(&Equipment, &mut CombatStats), With<Player>>,
 ) {
-    for (mut velocity, stats) in query.iter_mut() {
-        let dir = input.direction;
-        if dir.length_squared() > 0.0 {
-            let normalized = dir.normalize();
-            velocity.0 = Vec3::new(normalized.x * stats.move_speed, 0.0, normalized.y * stats.move_speed);
-        } else {
-            velocity.0 = Vec3::ZERO;
+    let (equip, mut stats) = match player_query.get_single_mut() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+    for slot in &equip.slots {
+        if let Some(item) = slot {
+            item.apply(&mut stats);
         }
+    }
+}
+
+/// Handles player movement from input. Uses acceleration for weight.
+/// Movement is camera-relative: W = up-on-screen, not world +Z.
+pub fn player_movement(
+    time: Res<Time>,
+    input: Res<PlayerInput>,
+    cam: Res<ir_core::CameraTransform>,
+    mut query: Query<(&mut Velocity, &CombatStats, &DashCooldown), With<Player>>,
+) {
+    // Get camera forward and right vectors projected onto the XZ plane
+    let cam_rot = cam.1;
+    let forward = -(cam_rot * Vec3::Z);
+    let forward_xz = Vec3::new(forward.x, 0.0, forward.z).normalize_or_zero();
+    let right = cam_rot * Vec3::X;
+    let right_xz = Vec3::new(right.x, 0.0, right.z).normalize_or_zero();
+
+    for (mut velocity, stats, dash) in query.iter_mut() {
+        if dash.active {
+            continue;
+        }
+        let dir = input.direction;
+        let speed = stats.move_speed + stats.move_speed_bonus;
+        let target = if dir.length_squared() > 0.0 {
+            let n = dir.normalize();
+            (forward_xz * n.y + right_xz * n.x) * speed
+        } else {
+            Vec3::ZERO
+        };
+        // Lerp velocity for smooth acceleration
+        let accel = 10.0 * time.delta_secs();
+        velocity.0 = velocity.0.lerp(target, accel.min(1.0));
     }
 }
 
@@ -53,43 +87,187 @@ pub fn apply_player_velocity(
     }
 }
 
-/// Auto-attack system — fires projectiles toward nearest enemy on cooldown.
-pub fn player_auto_attack(
+/// Fires a projectile toward cursor. Shared by primary, secondary, and dash attacks.
+fn fire_toward_cursor(
+    commands: &mut Commands,
+    origin: Vec3,
+    cursor: Vec3,
+    damage: f32,
+    speed: f32,
+    lifetime: f32,
+    owner: ProjectileOwner,
+) {
+    let direction = (cursor - origin).normalize_or_zero();
+    if direction.length_squared() < 0.1 {
+        return;
+    }
+    commands.spawn(ProjectileBundle::new(
+        damage, speed, lifetime, direction, origin + Vec3::Y * 0.5, owner,
+    ));
+}
+
+/// Primary attack toward cursor. Hold left mouse for continuous fire on cooldown.
+pub fn player_attack(
     mut commands: Commands,
     time: Res<Time>,
-    mut player_query: Query<(Entity, &Transform, &mut Weapon, &CombatStats), With<Player>>,
-    enemy_query: Query<&Transform, (With<Enemy>, Without<Player>)>,
+    input: Res<PlayerInput>,
+    cursor: Res<CursorWorldPos>,
+    mut player_query: Query<(&Transform, &mut Weapon, &CombatStats), With<Player>>,
 ) {
-    let (_player_entity, player_transform, mut weapon, stats) = match player_query.get_single_mut() {
-        Ok(x) => x,
+    let (transform, mut weapon, stats) = match player_query.get_single_mut() {
+        Ok(p) => p,
         Err(_) => return,
     };
 
-    // Find nearest enemy
-    let target = enemy_query
-        .iter()
-        .map(|t| (t.translation.distance(player_transform.translation), t))
-        .min_by(|(a, _), (b, _)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    weapon.cooldown_timer = (weapon.cooldown_timer - time.delta_secs()).max(0.0);
 
-    // Update cooldown
-    let attack_interval = 1.0 / (weapon.attack_speed + stats.attack_speed_bonus);
-    weapon.cooldown_timer -= time.delta_secs();
+    if !input.primary_attack || weapon.cooldown_timer > 0.0 {
+        return;
+    }
 
-    if let Some((_dist, enemy_transform)) = target {
-        if weapon.cooldown_timer <= 0.0 {
-            let direction = (enemy_transform.translation - player_transform.translation).normalize_or_zero();
-            let spawn_pos = player_transform.translation + Vec3::Y * 0.5;
+    let interval = 1.0 / (weapon.attack_speed + stats.attack_speed_bonus);
+    weapon.cooldown_timer = interval;
+    let dmg = weapon.damage + stats.damage_bonus;
+    fire_toward_cursor(&mut commands, transform.translation, cursor.0, dmg, 15.0, 2.0, ProjectileOwner::Player);
+}
 
-            commands.spawn(ProjectileBundle::new(
-                weapon.damage + stats.damage_bonus,
-                15.0,
-                2.0,
-                direction,
-                spawn_pos,
-                ProjectileOwner::Player,
-            ));
+/// Secondary attack — right mouse. Fires a spread of 3 projectiles.
+pub fn player_secondary_attack(
+    mut commands: Commands,
+    time: Res<Time>,
+    input: Res<PlayerInput>,
+    cursor: Res<CursorWorldPos>,
+    player_query: Query<(&Transform, &CombatStats), With<Player>>,
+    mut cooldown: Local<f32>,
+) {
+    *cooldown = (*cooldown - time.delta_secs()).max(0.0);
+    if !input.secondary_attack || *cooldown > 0.0 {
+        return;
+    }
+    let (transform, stats) = match player_query.get_single() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
 
-            weapon.cooldown_timer = attack_interval;
+    *cooldown = 0.8;
+    let dmg = 8.0 + stats.damage_bonus * 0.5;
+
+    let base_dir = (cursor.0 - transform.translation).normalize_or_zero();
+    if base_dir.length_squared() < 0.1 {
+        return;
+    }
+    let origin = transform.translation + Vec3::Y * 0.5;
+    for spread in [-0.15, 0.0, 0.15] {
+        let rotated = Quat::from_rotation_y(spread) * base_dir;
+        commands.spawn(ProjectileBundle::new(
+            dmg, 12.0, 1.5, rotated, origin, ProjectileOwner::Player,
+        ));
+    }
+}
+
+/// Cast ability — Q key. Fires a slow, high-damage piercing projectile.
+pub fn player_cast(
+    mut commands: Commands,
+    time: Res<Time>,
+    input: Res<PlayerInput>,
+    cursor: Res<CursorWorldPos>,
+    player_query: Query<(&Transform, &CombatStats), With<Player>>,
+    mut cooldown: Local<f32>,
+) {
+    *cooldown = (*cooldown - time.delta_secs()).max(0.0);
+    if !input.cast || *cooldown > 0.0 {
+        return;
+    }
+    let (transform, stats) = match player_query.get_single() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+
+    *cooldown = 3.0;
+
+    let base_dir = (cursor.0 - transform.translation).normalize_or_zero();
+    if base_dir.length_squared() < 0.1 {
+        return;
+    }
+    let origin = transform.translation + Vec3::Y * 0.5;
+
+    commands.spawn(ProjectileBundle {
+        projectile: Projectile {
+            damage: (20.0 + stats.damage_bonus * 2.0),
+            speed: 8.0,
+            lifetime: 4.0,
+            max_lifetime: 4.0,
+            piercing: true,
+            owner: ProjectileOwner::Player,
+        },
+        position: Position(origin),
+        velocity: Velocity(base_dir * 8.0),
+        render_info: RenderInfo::default(),
+        room_entity: RoomEntity,
+    });
+}
+
+/// Dash: quick burst with i-frames. Fires a projectile during dash (dash attack).
+pub fn player_dash(
+    mut commands: Commands,
+    time: Res<Time>,
+    input: Res<PlayerInput>,
+    cursor: Res<CursorWorldPos>,
+    mut player_query: Query<
+        (&Transform, &mut Velocity, &CombatStats, &mut DashCooldown, &mut Health),
+        With<Player>,
+    >,
+) {
+    let (transform, mut velocity, stats, mut dash, mut health) = match player_query.get_single_mut() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+
+    let cd_reduction = stats.dash_cooldown_reduction;
+    let base_cd = (1.0 - cd_reduction).max(0.2);
+
+    if dash.timer > 0.0 {
+        dash.timer -= time.delta_secs();
+    }
+
+    if dash.active {
+        dash.duration -= time.delta_secs();
+        if dash.duration <= 0.0 {
+            dash.active = false;
+            dash.duration = 0.25;
+            velocity.0 = Vec3::ZERO;
+            health.invulnerable_until = 0.0;
+        } else if dash.duration > 0.2 {
+            let dmg = 5.0 + stats.damage_bonus * 0.5;
+            if !dash.fired_dash_attack {
+                dash.fired_dash_attack = true;
+                let dir = velocity.0.normalize_or_zero();
+                if dir.length_squared() > 0.1 {
+                    commands.spawn(ProjectileBundle::new(
+                        dmg, 12.0, 0.5, dir,
+                        transform.translation + Vec3::Y * 0.5,
+                        ProjectileOwner::Player,
+                    ));
+                }
+            }
         }
+        return;
+    }
+
+    if input.dodge && dash.timer <= 0.0 {
+        dash.active = true;
+        dash.timer = base_cd;
+        dash.duration = 0.25;
+
+        let move_dir = input.direction;
+        let dash_dir = if move_dir.length_squared() > 0.0 {
+            Vec3::new(move_dir.x, 0.0, move_dir.y).normalize()
+        } else {
+            let to_cursor = cursor.0 - transform.translation;
+            Vec3::new(to_cursor.x, 0.0, to_cursor.z).normalize_or_zero()
+        };
+
+        velocity.0 = dash_dir * 25.0;
+        health.invulnerable_until = time.elapsed_secs() as f32 + 0.3;
     }
 }

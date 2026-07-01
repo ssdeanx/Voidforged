@@ -1,11 +1,10 @@
 [package]
-name = "ir-rendering"
+name = "ir-save"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
 bevy = { workspace = true }
-bevy_hanabi = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+bincode = { workspace = true }
 ir-core = { path = "../core" }
-ir-world = { path = "../world" }
-rand = { workspace = true }

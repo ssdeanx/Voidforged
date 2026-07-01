@@ -95,3 +95,18 @@ pub struct RunEndEvent {
     pub kills: u32,
     pub run_time: f32,
 }
+
+/// Fired to display a floating damage number.
+#[derive(Event, Debug, Clone)]
+pub struct DamageNumberEvent {
+    pub position: Vec3,
+    pub amount: i32,
+    pub is_crit: bool,
+}
+
+/// Fired to spawn a particle impact effect at a position.
+#[derive(Event, Debug, Clone)]
+pub struct SpawnImpactEvent {
+    pub position: Vec3,
+    pub color: Option<Vec4>,
+}

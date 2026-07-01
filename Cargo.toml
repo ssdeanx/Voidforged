@@ -9,6 +9,9 @@ members = [
     "crates/network",
     "crates/server",
     "crates/client",
+    "crates/world",
+    "crates/dungeon",
+    "crates/save",
 ]
 
 [workspace.package]
@@ -18,7 +21,9 @@ license = "MIT"
 
 [workspace.dependencies]
 bevy = { version = "0.15", features = ["bevy_asset", "bevy_scene", "bevy_render", "bevy_pbr", "bevy_core_pipeline", "bevy_gltf"] }
+bevy_hanabi = "0.15"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rand = "0.8"
 thiserror = "2"
+bincode = "1"

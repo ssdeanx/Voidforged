@@ -4,6 +4,10 @@ use crate::{leveling, upgrades};
 
 pub struct ProgressionPlugin;
 
+fn can_gain_xp(state: Res<State<AppState>>) -> bool {
+    matches!(*state.get(), AppState::Dungeon | AppState::Playing)
+}
+
 impl Plugin for ProgressionPlugin {
     fn build(&self, app: &mut App) {
         app
@@ -11,6 +15,6 @@ impl Plugin for ProgressionPlugin {
             .add_systems(Update, (
                 leveling::handle_xp_gain,
                 leveling::apply_level_up,
-            ).run_if(in_state(AppState::Playing)));
+            ).chain().run_if(can_gain_xp));
     }
 }

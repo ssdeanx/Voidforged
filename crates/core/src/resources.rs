@@ -11,7 +11,9 @@ pub enum AppState {
     #[default]
     Loading,
     MainMenu,
-    Playing,
+    World,       // ← NEW: open world exploration
+    Dungeon,     // ← NEW: inside a dungeon instance
+    Playing,     // kept for backward compat / combat
     Paused,
     GameOver,
 }
@@ -65,7 +67,7 @@ impl Default for WaveState {
 // Player Progression (per-run)
 // ============================================================================
 
-/// Tracks player progress during a single run.
+/// Tracks kills and damage per run so the game over screen can show stats.
 #[derive(Resource, Debug, Clone)]
 pub struct RunProgression {
     pub kills: u32,
@@ -149,6 +151,7 @@ pub struct PlayerInput {
     pub primary_attack: bool,
     pub secondary_attack: bool,
     pub dodge: bool,
+    pub cast: bool,
     pub interact: bool,
     pub pause: bool,
 }
@@ -156,6 +159,29 @@ pub struct PlayerInput {
 // ============================================================================
 // Game Config
 // ============================================================================
+
+/// Tracks the elapsed time of the current play session.
+#[derive(Resource, Debug, Clone)]
+pub struct PlayTimer(pub f32);
+
+impl Default for PlayTimer {
+    fn default() -> Self {
+        Self(0.0)
+    }
+}
+
+/// Tracks which dungeon the player is currently in.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct DungeonState {
+    pub current: Option<DungeonInstance>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DungeonInstance {
+    pub name: String,
+    pub tier: u32,
+    pub depth: u32,
+}
 
 /// Static game configuration loaded from assets.
 #[derive(Resource, Debug, Clone)]
@@ -181,6 +207,36 @@ impl Default for GameConfig {
     }
 }
 
+/// Mouse cursor position projected into 3D world space (y=0 plane).
+#[derive(Resource, Default, Debug, Clone)]
+pub struct CursorWorldPos(pub Vec3);
+
+/// Camera's current world transform — shared so gameplay can do camera-relative math.
+#[derive(Resource, Debug, Clone)]
+pub struct CameraTransform(pub Vec3, pub Quat);
+
+impl Default for CameraTransform {
+    fn default() -> Self {
+        Self(Vec3::new(0.0, 20.0, 20.0), Quat::IDENTITY)
+    }
+}
+
+/// Screen shake intensity for hit feedback.
+#[derive(Resource, Debug, Clone)]
+pub struct ScreenShake {
+    pub trauma: f32,
+    pub decay: f32,
+}
+
+impl Default for ScreenShake {
+    fn default() -> Self {
+        Self {
+            trauma: 0.0,
+            decay: 5.0,
+        }
+    }
+}
+
 // ============================================================================
 // Asset Resources
 // ============================================================================
@@ -196,7 +252,18 @@ pub struct GameAssets {
     pub projectile_material: Handle<StandardMaterial>,
     pub gem_mesh: Handle<Mesh>,
     pub gem_material: Handle<StandardMaterial>,
+    pub health_pickup_mesh: Handle<Mesh>,
+    pub health_pickup_material: Handle<StandardMaterial>,
+    pub gold_pickup_mesh: Handle<Mesh>,
+    pub gold_pickup_material: Handle<StandardMaterial>,
     pub floor_mesh: Handle<Mesh>,
     pub floor_material: Handle<StandardMaterial>,
+    pub tile_mesh: Handle<Mesh>,
+    pub tile_material: Handle<StandardMaterial>,
+    pub tile_material_alt: Handle<StandardMaterial>,
+    pub wall_mesh: Handle<Mesh>,
+    pub wall_material: Handle<StandardMaterial>,
+    pub shadow_mesh: Handle<Mesh>,
+    pub shadow_material: Handle<StandardMaterial>,
     pub environment_meshes: Vec<Handle<Mesh>>,
 }

@@ -8,7 +8,12 @@ pub fn spawn_wave(
     mut wave_state: ResMut<WaveState>,
     player_query: Query<&Transform, With<Player>>,
     time: Res<Time>,
+    play_timer: Res<PlayTimer>,
 ) {
+    // 3-second delay before first wave spawns
+    if wave_state.wave_number == 1 && wave_state.enemies_spawned == 0 && play_timer.0 < 3.0 {
+        return;
+    }
     if wave_state.enemies_spawned >= wave_state.enemies_total {
         return;
     }

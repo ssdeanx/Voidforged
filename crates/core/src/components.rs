@@ -188,6 +188,12 @@ pub struct CombatStats {
     pub crit_chance: f32,
     pub crit_multiplier: f32,
     pub pickup_radius: f32,
+    pub max_health_bonus: f32,
+    pub move_speed_bonus: f32,
+    pub dash_cooldown_reduction: f32,
+    pub lifesteal: f32,
+    pub armor_penetration: f32,
+    pub damage_taken_multiplier: f32,
 }
 
 impl Default for CombatStats {
@@ -201,7 +207,59 @@ impl Default for CombatStats {
             crit_chance: 0.05,
             crit_multiplier: 2.0,
             pickup_radius: 2.0,
+            max_health_bonus: 0.0,
+            move_speed_bonus: 0.0,
+            dash_cooldown_reduction: 0.0,
+            lifesteal: 0.0,
+            armor_penetration: 0.0,
+            damage_taken_multiplier: 1.0,
         }
+    }
+}
+
+/// A piece of equipment with stat modifiers.
+#[derive(Component, Debug, Clone)]
+pub struct Equipment {
+    pub slots: [Option<EquipmentItem>; 4], // weapon, offhand, armor, accessory
+}
+
+impl Default for Equipment {
+    fn default() -> Self {
+        Self { slots: [None, None, None, None] }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum EquipmentSlot {
+    Weapon = 0,
+    Offhand = 1,
+    Armor = 2,
+    Accessory = 3,
+}
+
+/// A equippable item with stat bonuses.
+#[derive(Debug, Clone)]
+pub struct EquipmentItem {
+    pub name: String,
+    pub slot: EquipmentSlot,
+    pub damage_bonus: f32,
+    pub attack_speed_bonus: f32,
+    pub armor_bonus: f32,
+    pub max_health_bonus: f32,
+    pub move_speed_bonus: f32,
+    pub lifesteal: f32,
+    pub crit_chance_bonus: f32,
+}
+
+impl EquipmentItem {
+    pub fn apply(&self, stats: &mut CombatStats) {
+        stats.damage_bonus += self.damage_bonus;
+        stats.attack_speed_bonus += self.attack_speed_bonus;
+        stats.armor += self.armor_bonus;
+        stats.max_health_bonus += self.max_health_bonus;
+        stats.move_speed_bonus += self.move_speed_bonus;
+        stats.lifesteal += self.lifesteal;
+        stats.crit_chance += self.crit_chance_bonus;
     }
 }
 
@@ -283,10 +341,31 @@ pub struct Lifetime {
 #[derive(Component, Debug, Clone)]
 pub struct AttackCooldown {
     pub timer: f32,
+    pub windup: f32,  // > 0 means telegraphing, counts down before attack lands
 }
 
 impl Default for AttackCooldown {
     fn default() -> Self {
-        Self { timer: 0.0 }
+        Self { timer: 0.0, windup: 0.0 }
+    }
+}
+
+/// Dash cooldown for player dodge roll.
+#[derive(Component, Debug, Clone)]
+pub struct DashCooldown {
+    pub timer: f32,
+    pub active: bool,
+    pub duration: f32,
+    pub fired_dash_attack: bool,
+}
+
+impl Default for DashCooldown {
+    fn default() -> Self {
+        Self {
+            timer: 0.0,
+            active: false,
+            duration: 0.25,
+            fired_dash_attack: false,
+        }
     }
 }

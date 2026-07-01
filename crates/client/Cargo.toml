@@ -11,3 +11,6 @@ ir-gameplay = { path = "../gameplay" }
 ir-procedural = { path = "../procedural" }
 ir-progression = { path = "../progression" }
 ir-network = { path = "../network" }
+ir-world = { path = "../world" }
+ir-dungeon = { path = "../dungeon" }
+ir-save = { path = "../save" }

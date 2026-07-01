@@ -1,7 +1,7 @@
 //! Isometric Roguelite — Main client binary.
 //!
-//! A 3D isometric action roguelite combining Vampire Survivors auto-combat
-//! with Hades-style depth and MMO-capable architecture.
+//! A 3D isometric action roguelite with open world exploration,
+//! procedural dungeons, Hades-style combat, and deep meta-progression.
 
 use bevy::prelude::*;
 
@@ -10,14 +10,20 @@ fn main() {
         .add_plugins(DefaultPlugins)
         // Core — shared types, resources, events
         .add_plugins(ir_core::CorePlugin)
-        // Rendering — isometric 3D camera, lighting, assets
+        // Rendering — isometric 3D camera, lighting, assets, HUD
         .add_plugins(ir_rendering::RenderingPlugin)
+        // World — open world map, zones, dungeon entrances
+        .add_plugins(ir_world::WorldPlugin)
+        // Dungeon — procedural rooms, encounters, boss fights
+        .add_plugins(ir_dungeon::DungeonPlugin)
         // Gameplay — combat, enemies, projectiles, player control
         .add_plugins(ir_gameplay::GameplayPlugin)
-        // Procedural — wave spawning, map gen, loot
+        // Procedural — loot tables
         .add_plugins(ir_procedural::ProceduralPlugin)
         // Progression — XP, leveling, meta-progression
         .add_plugins(ir_progression::ProgressionPlugin)
+        // Save/Load — persistent game state
+        .add_plugins(ir_save::SavePlugin)
         // Network — multiplayer (stubbed)
         .add_plugins(ir_network::NetworkPlugin)
         // Run the app
