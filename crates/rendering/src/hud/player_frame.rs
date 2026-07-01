@@ -1,42 +1,13 @@
-//! Player unit frame – WoW-style portrait + health bar + class resource + stamina.
+//! Player unit frame – WoW-style class-colored portrait + name + level
+//! + smooth health bar (lerp) + class resource bar + stamina bar.
 //!
-//! Spawned inside the HUD root at top-left.
+//! Spawned inside the HUD root at top-left. Updated every frame by
+//! the update systems in updates.rs.
 
 use bevy::prelude::*;
 use ir_core::CharacterClass;
 use crate::hud::components::*;
-
-// ── Class color helpers ──────────────────────────────────────────────────────
-
-pub fn class_portrait_color(class: &CharacterClass) -> Color {
-    match class {
-        CharacterClass::Warrior => Color::srgb(0.77, 0.12, 0.23),
-        CharacterClass::Paladin => Color::srgb(0.96, 0.55, 0.73),
-        CharacterClass::Rogue => Color::srgb(1.0, 0.96, 0.41),
-        CharacterClass::Hunter => Color::srgb(0.67, 0.83, 0.45),
-        CharacterClass::Mage => Color::srgb(0.41, 0.80, 0.94),
-    }
-}
-
-pub fn class_border_color(class: &CharacterClass) -> Color {
-    match class {
-        CharacterClass::Warrior => Color::srgb(0.77, 0.12, 0.23),
-        CharacterClass::Paladin => Color::srgb(1.0, 0.84, 0.0),
-        CharacterClass::Rogue => Color::srgb(0.0, 0.72, 0.0),
-        CharacterClass::Hunter => Color::srgb(0.0, 0.65, 0.21),
-        CharacterClass::Mage => Color::srgb(0.30, 0.50, 1.0),
-    }
-}
-
-pub fn class_resource_color(class: &CharacterClass) -> Color {
-    match class {
-        CharacterClass::Warrior => Color::srgb(0.77, 0.12, 0.23),
-        CharacterClass::Paladin => Color::srgb(1.0, 0.84, 0.0),
-        CharacterClass::Rogue => Color::srgb(1.0, 0.96, 0.41),
-        CharacterClass::Hunter => Color::srgb(0.67, 0.83, 0.45),
-        CharacterClass::Mage => Color::srgb(0.41, 0.80, 0.94),
-    }
-}
+use crate::ui_textures::UiTextureAssets;
 
 /// Helper to build a text label bundle for UI text.
 fn label(s: &str, size: f32, color: Color) -> impl Bundle {
@@ -47,9 +18,11 @@ fn label(s: &str, size: f32, color: Color) -> impl Bundle {
     )
 }
 
-/// Spawns the complete player unit frame at top-left of the HUD.
-pub fn spawn_player_frame(parent: &mut ChildBuilder) {
-    // Outer frame container – class-colored border
+/// Spawns the complete WoW-style player unit frame at top-left of the HUD.
+pub fn spawn_player_frame(parent: &mut ChildBuilder, assets: &UiTextureAssets) {
+    let class = CharacterClass::Warrior; // will be overridden by update system
+
+    // Outer frame container – class-colored border with 9-slice border texture
     parent
         .spawn((
             Node {
@@ -60,17 +33,20 @@ pub fn spawn_player_frame(parent: &mut ChildBuilder) {
                 left: Val::Px(8.0),
                 flex_direction: FlexDirection::Row,
                 align_items: AlignItems::FlexStart,
-                padding: UiRect::all(Val::Px(4.0)),
+                padding: UiRect::all(Val::Px(3.0)),
+                border: UiRect::all(Val::Px(2.0)),
                 ..default()
             },
+            BorderColor(class_border_glow(class)),
+            BackgroundColor(Color::srgb(0.08, 0.08, 0.12)),
             HudPlayerFrame,
         ))
         .with_children(|frame| {
-            // ── Portrait ────────────────────────────────────────────
+            // ── Portrait (class-colored square) ─────────────────────┐
             frame.spawn((
                 Node {
-                    width: Val::Px(56.0),
-                    height: Val::Px(56.0),
+                    width: Val::Px(52.0),
+                    height: Val::Px(52.0),
                     border: UiRect::all(Val::Px(2.0)),
                     flex_direction: FlexDirection::Column,
                     align_items: AlignItems::Center,
@@ -78,30 +54,19 @@ pub fn spawn_player_frame(parent: &mut ChildBuilder) {
                     margin: UiRect::right(Val::Px(8.0)),
                     ..default()
                 },
-                BackgroundColor(Color::srgb(0.12, 0.12, 0.15)),
-                BorderColor(Color::srgb(0.4, 0.4, 0.5)),
+                BackgroundColor(class_primary_color(class)),
+                BorderColor(class_border_glow(class)),
                 HudPlayerPortrait,
-            )).with_children(|portrait| {
-                // Class icon placeholder — a filled square
-                portrait.spawn((
-                    Node {
-                        width: Val::Px(44.0),
-                        height: Val::Px(44.0),
-                        ..default()
-                    },
-                    BackgroundColor(class_portrait_color(&CharacterClass::Warrior)),
-                    HudPlayerPortrait,
-                ));
-            });
+            ));
 
-            // ── Info column ─────────────────────────────────────────
+            // ── Info column (name, level, bars) ─────────────────────┐
             frame
                 .spawn((
                     Node {
                         flex_direction: FlexDirection::Column,
                         justify_content: JustifyContent::Center,
                         row_gap: Val::Px(2.0),
-                        width: Val::Px(230.0),
+                        width: Val::Px(240.0),
                         ..default()
                     },
                     HudPlayerFrame,
@@ -121,7 +86,7 @@ pub fn spawn_player_frame(parent: &mut ChildBuilder) {
                         nl.spawn((label("Lv. 1", 13.0, Color::srgb(0.7, 0.5, 1.0)), HudPlayerLevelText));
                     });
 
-                    // Health bar
+                    // ── Health bar (WoW-style smooth fill) ──────────┐
                     info.spawn((
                         Node {
                             width: Val::Percent(100.0),
@@ -133,16 +98,18 @@ pub fn spawn_player_frame(parent: &mut ChildBuilder) {
                         BackgroundColor(Color::srgb(0.15, 0.04, 0.04)),
                         HudHealthBarBorder,
                     )).with_children(|hp_bg| {
+                        // Fill bar – uses health gradient texture, width driven by update system
                         hp_bg.spawn((
                             Node {
                                 width: Val::Percent(100.0),
                                 height: Val::Percent(100.0),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgb(0.0, 0.72, 0.12)),
+                            ImageNode::new(assets.bar_health.clone()),
                             HudHealthBar,
+                            HudHealthDisplay::default(),
                         ));
-                        // HP text overlay centered
+                        // HP text overlay (centered)
                         hp_bg.spawn((
                             Node {
                                 width: Val::Percent(100.0),
@@ -162,7 +129,7 @@ pub fn spawn_player_frame(parent: &mut ChildBuilder) {
                         });
                     });
 
-                    // Class resource bar
+                    // ── Class resource bar ───────────────────────────┐
                     info.spawn((
                         Node {
                             width: Val::Percent(100.0),
@@ -180,8 +147,9 @@ pub fn spawn_player_frame(parent: &mut ChildBuilder) {
                                 height: Val::Percent(100.0),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgb(0.77, 0.12, 0.23)), // warrior rage default
+                            BackgroundColor(Color::srgb(0.75, 0.10, 0.10)), // Rage default
                             HudResourceBarFill,
+                            HudResourceDisplay::default(),
                         ));
                         res_bg.spawn((
                             Node {
@@ -202,7 +170,7 @@ pub fn spawn_player_frame(parent: &mut ChildBuilder) {
                         });
                     });
 
-                    // Stamina bar
+                    // ── Stamina bar ──────────────────────────────────┐
                     info.spawn((
                         Node {
                             width: Val::Percent(100.0),
@@ -220,7 +188,7 @@ pub fn spawn_player_frame(parent: &mut ChildBuilder) {
                                 height: Val::Percent(100.0),
                                 ..default()
                             },
-                            BackgroundColor(Color::srgb(1.0, 0.75, 0.05)),
+                            ImageNode::new(assets.bar_stamina.clone()),
                             HudStaminaBarFill,
                         ));
                         stam_bg.spawn((

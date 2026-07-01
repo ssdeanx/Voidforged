@@ -3,7 +3,6 @@
 
 use bevy::prelude::*;
 use ir_core::*;
-use crate::classes::abilities::ClassResource;
 
 /// Resource config
 pub fn resource_config() -> ClassResource {

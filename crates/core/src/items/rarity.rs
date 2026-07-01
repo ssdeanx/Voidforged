@@ -75,8 +75,8 @@ mod tests {
     fn test_rarity_color_not_black() {
         // All rarities should produce a non-zero color
         for rarity in &[ItemRarity::Common, ItemRarity::Uncommon, ItemRarity::Rare, ItemRarity::Epic, ItemRarity::Legendary] {
-            let c = rarity.color();
-            let sum = c.r() + c.g() + c.b();
+            let c = rarity.color().to_linear();
+            let sum = c.red + c.green + c.blue;
             assert!(sum > 0.0, "color sum for {:?} should be > 0", rarity);
         }
     }

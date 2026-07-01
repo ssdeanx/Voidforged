@@ -251,6 +251,8 @@ pub fn apply_damage(
             }
             // Small hit-stop for game feel
             commands.entity(target).insert(HitStop::new(stun_duration * 0.3));
+            // Hit-flash for game feel (fixed 0.15s for projectile/non-hitbox damage)
+            commands.entity(target).insert(HitFlash::new(0.15));
         }
 
         // ── Stun on heavy hits (damage > 30% of max HP estimate) ─
@@ -275,16 +277,22 @@ pub fn apply_damage(
 // Death Events — spawns loot
 // ============================================================================
 
-/// Handles death events — spawns loot, despawns enemies.
+/// Handles death events — spawns loot, despawns enemies, fires death particle event.
 pub fn handle_death(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
+    mut death_effect_events: EventWriter<SpawnDeathEffectEvent>,
     enemy_query: Query<(&Enemy, &Transform)>,
     assets: Res<GameAssets>,
 ) {
     for event in death_events.read() {
         if let Ok((enemy, transform)) = enemy_query.get(event.entity) {
             let pos = transform.translation + Vec3::Y * 0.5;
+            // Fire death particle effect
+            death_effect_events.send(SpawnDeathEffectEvent {
+                position: pos,
+                enemy_variant: enemy.variant.clone(),
+            });
             ir_procedural::loot::spawn_loot(
                 &mut commands,
                 &assets,
@@ -292,6 +300,7 @@ pub fn handle_death(
                 &enemy.variant,
                 enemy.tier,
             );
+            commands.entity(event.entity).despawn();
         }
     }
 }
@@ -359,6 +368,10 @@ pub fn process_hitboxes(
                 }
                 if hitbox.hit_stop_duration > 0.0 {
                     commands.entity(enemy_entity).insert(HitStop::new(hitbox.hit_stop_duration));
+                }
+                // Hit-flash on the target
+                if hitbox.hit_flash_duration > 0.0 {
+                    commands.entity(enemy_entity).insert(HitFlash::new(hitbox.hit_flash_duration));
                 }
 
                 let damage_type = hitbox.damage_type.clone();
@@ -473,14 +486,16 @@ pub fn process_enemy_hitboxes(
 // ============================================================================
 
 /// Applies knockback velocity and decays it with damping.
+/// Writes into Velocity so knockback interacts with the friction/acceleration
+/// model in player_movement, and with apply_enemy_velocity for enemies.
 pub fn apply_knockback(
     mut commands: Commands,
     time: Res<Time>,
-    mut query: Query<(Entity, &mut Transform, &mut Knockback)>,
+    mut query: Query<(Entity, &mut Velocity, &mut Knockback)>,
 ) {
-    for (entity, mut transform, mut knockback) in query.iter_mut() {
-        // Apply knockback velocity
-        transform.translation += knockback.velocity * time.delta_secs();
+    for (entity, mut velocity, mut knockback) in query.iter_mut() {
+        // Add knockback to velocity
+        velocity.0 += knockback.velocity * time.delta_secs();
 
         // Damping decay
         let damping_factor = (1.0 - knockback.damping * time.delta_secs()).max(0.0);
@@ -563,41 +578,38 @@ pub fn apply_stun_movement_block(
     }
 }
 
+/// Ticks HitFlash duration and removes expired.
+pub fn tick_hit_flash(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut HitFlash)>,
+) {
+    for (entity, mut flash) in query.iter_mut() {
+        flash.remaining -= time.delta_secs();
+        if flash.remaining <= 0.0 {
+            commands.entity(entity).remove::<HitFlash>();
+        }
+    }
+}
+
 // ============================================================================
 // Stamina System
 // ============================================================================
 
-/// Sprint toggle state.
-#[derive(Component, Default)]
-pub struct Sprinting(pub bool);
-
-/// Tick once per second to give a periodic stamina burst.
+/// Regenerates stamina over time. Regen pauses for `stamina_lockout_timer`
+/// seconds after any stamina spend (wow-style lockout).
 pub fn stamina_regen(
     time: Res<Time>,
     mut query: Query<&mut Stamina, With<Player>>,
 ) {
     for mut stamina in query.iter_mut() {
-        stamina.current = (stamina.current + stamina.regen_rate * time.delta_secs()).min(stamina.max);
-    }
-}
-
-/// Sprint costs stamina every frame while active.
-pub fn sprint_stamina_drain(
-    time: Res<Time>,
-    input: Res<PlayerInput>,
-    mut query: Query<(&mut Stamina, &mut Sprinting), With<Player>>,
-) {
-    let Ok((mut stamina, mut sprinting)) = query.get_single_mut() else { return };
-    let wants_sprint = input.direction.length_squared() > 0.1
-        && (input.dodge); // reuse dodge keybind for sprint too
-
-    if wants_sprint && stamina.current > 0.0 {
-        sprinting.0 = true;
-        stamina.current = (stamina.current - 20.0 * time.delta_secs()).max(0.0);
-        if stamina.current <= 0.0 {
-            sprinting.0 = false;
+        // Tick lockout timer down
+        if stamina.stamina_lockout_timer > 0.0 {
+            stamina.stamina_lockout_timer = (stamina.stamina_lockout_timer - time.delta_secs()).max(0.0);
         }
-    } else {
-        sprinting.0 = false;
+        // Only regen when lockout has expired
+        if stamina.stamina_lockout_timer <= 0.0 {
+            stamina.current = (stamina.current + stamina.regen_rate * time.delta_secs()).min(stamina.max);
+        }
     }
 }

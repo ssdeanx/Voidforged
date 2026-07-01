@@ -9,12 +9,14 @@ use crate::loot::ItemDrop;
 // ============================================================================
 
 /// Equips an item from inventory slot X into equipment slot Y.
+/// Recalculates stats after the swap.
 pub fn handle_equip_event(
     mut commands: Commands,
+    item_db: Res<ir_core::ItemDatabase>,
     mut events: EventReader<EquipItemEvent>,
-    mut player_query: Query<(Entity, &mut Inventory, &mut Equipment), With<Player>>,
+    mut player_query: Query<(Entity, &mut Inventory, &mut Equipment, &mut CombatStats), With<Player>>,
 ) {
-    let Ok((_player, mut inventory, mut equipment)) = player_query.get_single_mut() else {
+    let Ok((_player, mut inventory, mut equipment, mut stats)) = player_query.get_single_mut() else {
         return;
     };
 
@@ -33,17 +35,22 @@ pub fn handle_equip_event(
             }
         }
         info!("Equipped item in slot {:?}", event.equip_slot);
+
+        // Recalculate stats from all equipped items
+        recalc_equipment_stats(&item_db, &equipment, &mut *stats);
     }
 }
 
 /// Unequips an item from an equipment slot back to inventory.
+/// Recalculates stats after the swap.
 pub fn handle_unequip_event(
     mut events: EventReader<UnequipItemEvent>,
+    item_db: Res<ir_core::ItemDatabase>,
     mut inventory_query: Query<&mut Inventory, With<Player>>,
-    mut equipment_query: Query<&mut Equipment, With<Player>>,
+    mut equipment_query: Query<(&mut Equipment, &mut CombatStats), With<Player>>,
 ) {
     let Ok(mut inventory) = inventory_query.get_single_mut() else { return };
-    let Ok(mut equipment) = equipment_query.get_single_mut() else { return };
+    let Ok((mut equipment, mut stats)) = equipment_query.get_single_mut() else { return };
 
     for event in events.read() {
         let Some(item) = equipment.unequip(event.equip_slot) else {
@@ -53,28 +60,20 @@ pub fn handle_unequip_event(
         if !inventory.add_item(item) {
             warn!("Unequip failed: inventory full");
         }
+
+        // Recalculate stats from remaining equipped items
+        recalc_equipment_stats(&item_db, &equipment, &mut *stats);
     }
 }
 
-/// Recalculates stats from equipped items.
+/// Adds equipment stat bonuses to CombatStats WITHOUT zeroing existing stats.
+/// This preserves class base stats (set by CharacterClass::base_stats) and
+/// meta-progression bonuses — only the equipment contribution is added.
+/// Safe to call repeatedly as long as the baseline stats are correct.
 pub fn recalc_equipment_stats(
-    item_db: Res<ir_core::ItemDatabase>,
-    mut player_query: Query<(&Equipment, &mut CombatStats), With<Player>>,
+    item_db: &ir_core::ItemDatabase,
+    equip: &Equipment,
+    stats: &mut CombatStats,
 ) {
-    let Ok((equip, mut stats)) = player_query.get_single_mut() else {
-        return;
-    };
-    stats.damage_bonus = 0.0;
-    stats.attack_speed_bonus = 0.0;
-    stats.armor = 0.0;
-    stats.max_health_bonus = 0.0;
-    stats.move_speed_bonus = 0.0;
-    stats.crit_chance = 0.05;
-    stats.crit_multiplier = 2.0;
-    stats.dodge_chance = 0.0;
-    stats.lifesteal = 0.0;
-    stats.pickup_radius = 2.0;
-    stats.armor_penetration = 0.0;
-
-    let _changes = equip.apply_stats(&item_db, &mut *stats);
+    let _changes = equip.apply_stats(item_db, stats);
 }

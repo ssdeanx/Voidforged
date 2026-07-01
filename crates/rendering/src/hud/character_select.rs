@@ -21,7 +21,7 @@ fn btn_label(s: &str, size: f32) -> impl Bundle {
 }
 
 /// Spawns the full character select screen.
-pub fn spawn_character_select(mut commands: Commands) {
+pub fn spawn_character_select(mut commands: Commands, meta: Res<MetaProgression>) {
     commands
         .spawn((
             Node {
@@ -41,7 +41,7 @@ pub fn spawn_character_select(mut commands: Commands) {
             root.spawn((label("CHOOSE YOUR HERO", 38.0, Color::srgb(0.7, 0.5, 1.0)), CharSelectRoot));
             root.spawn((Node { height: Val::Px(16.0), ..default() }, CharSelectRoot));
 
-            // ── Class cards row ────────────────────────────────────
+            // ── Class cards row (filtered by weapon unlocks) ───────
             root.spawn((
                 Node {
                     width: Val::Percent(100.0),
@@ -55,7 +55,9 @@ pub fn spawn_character_select(mut commands: Commands) {
                 CharSelectRoot,
             )).with_children(|cards| {
                 for class in CharacterClass::all() {
-                    spawn_class_card(cards, class);
+                    if class.is_unlocked(&meta.unlocks) {
+                        spawn_class_card(cards, class);
+                    }
                 }
             });
 
@@ -132,6 +134,27 @@ pub fn spawn_character_select(mut commands: Commands) {
                 btn.spawn((btn_label("ENTER THE WORLD", 22.0), CharSelectRoot));
             });
 
+            root.spawn((Node { height: Val::Px(12.0), ..default() }, CharSelectRoot));
+
+            // ── Back button ────────────────────────────────────────
+            root.spawn((
+                Node {
+                    width: Val::Px(200.0),
+                    height: Val::Px(36.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border: UiRect::all(Val::Px(1.0)),
+                    ..default()
+                },
+                BorderColor(Color::srgb(0.4, 0.4, 0.6)),
+                BackgroundColor(Color::srgba(0.12, 0.12, 0.18, 1.0)),
+                CharSelectBackBtn,
+                CharSelectRoot,
+                Button,
+            )).with_children(|btn| {
+                btn.spawn((label("Back", 20.0, Color::srgb(0.6, 0.8, 1.0)), CharSelectRoot));
+            });
+
             root.spawn((Node { height: Val::Px(24.0), ..default() }, CharSelectRoot));
 
             // ── Existing characters section ────────────────────────
@@ -154,7 +177,7 @@ pub fn spawn_character_select(mut commands: Commands) {
 
 fn spawn_class_card(parent: &mut ChildBuilder, class: CharacterClass) {
     let data = class_stats_preview(class);
-    let color = class_color(class);
+    let color = class_primary_color(class);
     parent.spawn((
         Node {
             width: Val::Px(130.0),
@@ -197,32 +220,32 @@ fn class_stats_preview(class: CharacterClass) -> ClassPreview {
     }
 }
 
-fn class_color(class: CharacterClass) -> Color {
-    match class {
-        CharacterClass::Warrior => Color::srgb(0.8, 0.3, 0.2),
-        CharacterClass::Paladin => Color::srgb(0.9, 0.7, 0.3),
-        CharacterClass::Rogue => Color::srgb(0.2, 0.7, 0.4),
-        CharacterClass::Hunter => Color::srgb(0.2, 0.6, 0.3),
-        CharacterClass::Mage => Color::srgb(0.3, 0.5, 1.0),
-    }
-}
-
 // ── System: handle class card clicks ────────────────────────────────────────
 
 /// Clicking a class card updates the selected class and shows details.
 pub fn handle_class_selection(
-    mut interaction_query: Query<(&Interaction, &CharSelectClassCard), Changed<Interaction>>,
+    mut commands: Commands,
+    mut interaction_query: Query<
+        (Entity, &Interaction, &CharSelectClassCard),
+        Changed<Interaction>,
+    >,
     mut creation_state: ResMut<CharacterCreationState>,
     mut preview_text: Query<&mut Text, (With<CharSelectStatsPreview>, Without<CharSelectNameInput>)>,
+    transform_query: Query<&Transform>,
+    tween_query: Query<&ir_core::tween::Tween>,
 ) {
-    for (interaction, card) in interaction_query.iter_mut() {
+    for (entity, interaction, card) in interaction_query.iter_mut() {
         if *interaction == Interaction::Pressed {
             creation_state.selected_class = Some(card.0);
             // Update preview text
             let class = card.0;
             let stats = class.base_stats();
+            let primary_ability = class.primary_ability().display_name();
+            let secondary_ability = class.secondary_ability().display_name();
+            let cast_ability = class.cast_ability().display_name();
+            let dash_ability = class.dash_ability().display_name();
             let desc = format!(
-                "{}\n\n── Stats ──\nHP: {}  |  Speed: {}  |  Armor: {}\nDamage: +{}  |  Crit: {}%  |  Dodge: {}%\nResource: {}  |  Weapon: {:?}",
+                "{}\n\n── Stats ──\nHP: {}  |  Speed: {}  |  Armor: {}\nDamage: +{}  |  Crit: {}%  |  Dodge: {}%\n\n── Abilities ──\nResource: {}\nPrimary:   {}  |  Secondary: {}\nCast:      {}  |  Dash:      {}\n\nWeapon: {:?}",
                 class.description(),
                 class.base_max_hp() as u32,
                 stats.move_speed,
@@ -231,10 +254,35 @@ pub fn handle_class_selection(
                 (stats.crit_chance * 100.0) as u32,
                 (stats.dodge_chance * 100.0) as u32,
                 class.resource_name(),
+                primary_ability,
+                secondary_ability,
+                cast_ability,
+                dash_ability,
                 class.starting_weapon().kind,
             );
             for mut text in preview_text.iter_mut() {
                 text.0 = desc.clone();
+            }
+        }
+
+        // ── Hover tween for class cards ──
+        match interaction {
+            Interaction::Hovered | Interaction::Pressed => {
+                let has_tween = tween_query.contains(entity);
+                if !has_tween {
+                    commands.entity(entity).insert(ir_core::tween::Tween::scale(
+                        1.0, 1.05, 0.2, ir_core::tween::easing::ease_out,
+                    ));
+                }
+            }
+            Interaction::None => {
+                let current_scale = transform_query
+                    .get(entity)
+                    .map(|t| t.scale.x)
+                    .unwrap_or(1.0);
+                commands.entity(entity).insert(ir_core::tween::Tween::scale(
+                    current_scale, 1.0, 0.2, ir_core::tween::easing::ease_out,
+                ));
             }
         }
     }
@@ -278,6 +326,51 @@ pub fn handle_name_input(
                 creation_state.player_name.push(c);
                 changed = true;
             }
+        }
+    }
+
+    // Number keys (0-9)
+    for digit in 0..=9 {
+        let key = match digit {
+            0 => KeyCode::Digit0,
+            1 => KeyCode::Digit1,
+            2 => KeyCode::Digit2,
+            3 => KeyCode::Digit3,
+            4 => KeyCode::Digit4,
+            5 => KeyCode::Digit5,
+            6 => KeyCode::Digit6,
+            7 => KeyCode::Digit7,
+            8 => KeyCode::Digit8,
+            9 => KeyCode::Digit9,
+            _ => unreachable!(),
+        };
+        if keyboard.just_pressed(key) {
+            let c = char::from(b'0' + digit);
+            if creation_state.player_name.len() < 20 {
+                creation_state.player_name.push(c);
+                changed = true;
+            }
+        }
+    }
+
+    // Underscore
+    if keyboard.just_pressed(KeyCode::Minus) && keyboard.pressed(KeyCode::ShiftLeft)
+        || keyboard.just_pressed(KeyCode::Minus) && keyboard.pressed(KeyCode::ShiftRight)
+    {
+        if creation_state.player_name.len() < 20 {
+            creation_state.player_name.push('_');
+            changed = true;
+        }
+    }
+
+    // Dash (minus without shift)
+    if keyboard.just_pressed(KeyCode::Minus)
+        && !keyboard.pressed(KeyCode::ShiftLeft)
+        && !keyboard.pressed(KeyCode::ShiftRight)
+    {
+        if creation_state.player_name.len() < 20 {
+            creation_state.player_name.push('-');
+            changed = true;
         }
     }
 
@@ -353,18 +446,45 @@ pub fn confirm_character(
     next_state.set(AppState::World);
 }
 
+// ── System: handle back button / Escape key ────────────────────────────────
+
+/// Clicking Back or pressing Escape returns to the main menu.
+pub fn handle_char_select_back(
+    interaction_query: Query<&Interaction, (With<CharSelectBackBtn>, Changed<Interaction>)>,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
+    let go_back = interaction_query.iter().any(|i| *i == Interaction::Pressed)
+        || keyboard.just_pressed(KeyCode::Escape);
+
+    if go_back {
+        next_state.set(AppState::MainMenu);
+    }
+}
+
 // ── System: populate existing character list ───────────────────────────────
 
-/// Renders the list of saved characters each time the screen loads.
+/// Renders the list of saved characters. Uses a marker `CharSelectPopulated`
+/// on the root entity to run only once per spawn.
 pub fn populate_existing_characters(
     mut commands: Commands,
     profiles: Res<PlayerProfiles>,
     existing_list: Query<Entity, With<CharSelectExistingList>>,
+    root_query: Query<Entity, (With<CharSelectRoot>, Without<CharSelectPopulated>)>,
 ) {
     let list_entity = match existing_list.get_single() {
         Ok(e) => e,
         Err(_) => return,
     };
+
+    // Skip if already populated
+    let root_entity = match root_query.get_single() {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    // Mark as populated so we don't run again this spawn cycle
+    commands.entity(root_entity).insert(CharSelectPopulated);
 
     // Clear previous entries
     commands.entity(list_entity).despawn_descendants();
@@ -372,13 +492,7 @@ pub fn populate_existing_characters(
     let mut entity_commands = commands.entity(list_entity);
     for profile in &profiles.profiles {
         let pid = profile.id;
-        let class_color = match profile.class {
-            CharacterClass::Warrior => Color::srgb(0.8, 0.3, 0.2),
-            CharacterClass::Paladin => Color::srgb(0.9, 0.7, 0.3),
-            CharacterClass::Rogue => Color::srgb(0.2, 0.7, 0.4),
-            CharacterClass::Hunter => Color::srgb(0.2, 0.6, 0.3),
-            CharacterClass::Mage => Color::srgb(0.3, 0.5, 1.0),
-        };
+        let class_color = class_primary_color(profile.class);
         entity_commands.with_children(|parent| {
             parent.spawn((
                 Node {

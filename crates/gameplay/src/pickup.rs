@@ -66,13 +66,16 @@ pub fn collect_gold_pickups(
         Err(_) => return,
     };
 
+    let greed_mult = ir_progression::upgrades::utility_tier_multiplier(&meta, "gold_boost");
+
     for (pickup_entity, pickup_transform, pickup) in pickup_query.iter() {
         if pickup.kind != PickupKind::Gold {
             continue;
         }
         let dist = pickup_transform.translation.distance(player_pos);
         if dist < 1.5 {
-            meta.gold += 10;
+            let gold_amount = (10.0 * greed_mult) as u64;
+            meta.gold += gold_amount;
             commands.entity(pickup_entity).despawn();
         }
     }

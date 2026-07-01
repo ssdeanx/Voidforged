@@ -11,5 +11,5 @@ pub mod mage;
 
 pub use abilities::{
     cast_ability, class_resource_regen, dash_ability, primary_attack,
-    secondary_attack, ClassResource,
+    secondary_attack, tick_ability_cooldowns,
 };

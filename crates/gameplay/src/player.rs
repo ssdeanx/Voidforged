@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 use ir_core::*;
+use ir_world::map::WorldTile;
+use ir_dungeon::rooms::DungeonWall;
 
 /// Reads keyboard and mouse input into the PlayerInput resource.
 pub fn read_player_input(
@@ -30,21 +32,28 @@ pub fn read_player_input(
 }
 
 /// Applies Equipment bonuses to CombatStats when a new run starts.
+/// Starts from class base stats (already set by spawn), then adds equipment on top.
 pub fn apply_equipment(
+    item_db: Res<ir_core::ItemDatabase>,
     mut player_query: Query<(&Equipment, &mut CombatStats), With<Player>>,
 ) {
-    let (_equip, mut stats) = match player_query.get_single_mut() {
-        Ok(p) => p,
-        Err(_) => return,
+    let Ok((equip, mut stats)) = player_query.get_single_mut() else {
+        return;
     };
-    // TODO: Apply equipped item stats when ItemSystem is wired
-    stats.damage_bonus = 0.0;
-    stats.attack_speed_bonus = 0.0;
+    // Add equipment stats on top of class base stats (no zeroing)
+    crate::equipment::recalc_equipment_stats(&item_db, equip, &mut *stats);
 }
 
-/// Handles player movement from input. Uses acceleration for weight.
+/// Handles player movement from input. Uses acceleration + friction model.
 /// Movement is camera-relative: W = up-on-screen, not world +Z.
-/// Skips movement if stunned or hit-stunned.
+/// During stun/hit-stun, player input is skipped but existing velocity
+/// (knockback, etc.) is preserved. During dash, input is also skipped.
+///
+/// Acceleration model:
+///   - Ground friction: 0.85 (quick stop, 85% velocity retained per frame @60fps)
+///   - Air friction:    0.95 (slippery, 95% retained per frame @60fps)
+///   - Acceleration:    60.0 units/s² toward target velocity
+///   - Knockback velocity feeds into Velocity so it interacts with friction
 pub fn player_movement(
     time: Res<Time>,
     input: Res<PlayerInput>,
@@ -56,6 +65,7 @@ pub fn player_movement(
         Option<&Stun>,
         Option<&HitStun>,
         Option<&Frozen>,
+        Option<&Knockback>,
     ), With<Player>>,
 ) {
     // Get camera forward and right vectors projected onto the XZ plane
@@ -65,12 +75,26 @@ pub fn player_movement(
     let right = cam_rot * Vec3::X;
     let right_xz = Vec3::new(right.x, 0.0, right.z).normalize_or_zero();
 
-    for (mut velocity, stats, dash, stun, hit_stun, frozen) in query.iter_mut() {
-        // Don't allow manual movement during dash, stun, or hit-stun
-        if dash.active || stun.is_some() || hit_stun.is_some() {
-            velocity.0 = Vec3::ZERO;
+    for (mut velocity, stats, dash, stun, hit_stun, frozen, _knockback) in query.iter_mut() {
+        // During dash: skip player input, but preserve current velocity
+        // (dash sets velocity separately in dash_ability)
+        if dash.active {
             continue;
         }
+
+        // Apply friction to current velocity (frame-rate independent)
+        // Ground friction = 0.85 (85% retained per frame at 60fps)
+        // Air friction = 0.95
+        let friction = 0.85;
+        let friction_factor = f32::powf(friction, time.delta_secs() * 60.0);
+        velocity.0 *= friction_factor;
+
+        // During stun/hit-stun: skip player input, velocity decays naturally
+        // via friction (knockback still applies through apply_knockback feeding Velocity)
+        if stun.is_some() || hit_stun.is_some() {
+            continue;
+        }
+
         let dir = input.direction;
         let mut speed = stats.move_speed + stats.move_speed_bonus;
 
@@ -79,15 +103,14 @@ pub fn player_movement(
             speed *= 0.4;
         }
 
-        let target = if dir.length_squared() > 0.0 {
+        if dir.length_squared() > 0.0 {
             let n = dir.normalize();
-            (forward_xz * n.y + right_xz * n.x) * speed
-        } else {
-            Vec3::ZERO
-        };
-        // Lerp velocity for smooth acceleration
-        let accel = 10.0 * time.delta_secs();
-        velocity.0 = velocity.0.lerp(target, accel.min(1.0));
+            let target = (forward_xz * n.y + right_xz * n.x) * speed;
+
+            // Accelerate toward target at 60 units/s²
+            let accel = 60.0 * time.delta_secs();
+            velocity.0 = velocity.0.lerp(target, accel.min(1.0));
+        }
     }
 }
 
@@ -98,6 +121,80 @@ pub fn apply_player_velocity(
 ) {
     for (velocity, mut transform) in query.iter_mut() {
         transform.translation += velocity.0 * time.delta_secs();
+    }
+}
+
+/// Collision: pushes the player out of WorldTile edges (keeps player in world bounds)
+/// and DungeonWall entities.
+///
+/// Simple approach: clamp player position based on tile bounding box and
+/// push out of walls using a basic overlap test.
+pub fn player_world_collision(
+    mut player_query: Query<&mut Transform, With<Player>>,
+    world_tiles: Query<&Transform, (With<WorldTile>, Without<Player>)>,
+    dungeon_walls: Query<&Transform, (With<DungeonWall>, Without<Player>)>,
+) {
+    let Ok(mut player_tf) = player_query.get_single_mut() else { return };
+    let player_pos = player_tf.translation;
+
+    // ── WorldTile bounds: keep player inside the world tile grid ──
+    if !world_tiles.is_empty() {
+        let mut min_x = f32::MAX;
+        let mut max_x = f32::MIN;
+        let mut min_z = f32::MAX;
+        let mut max_z = f32::MIN;
+        for tile_tf in world_tiles.iter() {
+            let p = tile_tf.translation;
+            // Each tile is 2.0 wide (spacing), centered at its position
+            let half = 1.0; // tile half-size (2.0 spacing / 2)
+            min_x = min_x.min(p.x - half);
+            max_x = max_x.max(p.x + half);
+            min_z = min_z.min(p.z - half);
+            max_z = max_z.max(p.z + half);
+        }
+        // Clamp player position within tile bounds (with a small margin)
+        let margin = 0.3;
+        player_tf.translation.x = player_tf.translation.x.clamp(min_x + margin, max_x - margin);
+        player_tf.translation.z = player_tf.translation.z.clamp(min_z + margin, max_z - margin);
+    }
+
+    // ── DungeonWall collision: push player out ──
+    // Walls are 0.3 wide, 2.0 tall, and (TILE*0.9) ≈ 1.8 long
+    let player_radius = 0.4;
+    for wall_tf in dungeon_walls.iter() {
+        let wall_pos = wall_tf.translation;
+        // Wall size: width=0.3, length=1.8 (TILE*0.9 ≈ 1.8 with TILE=2.0)
+        let wall_half_w = 0.15; // half of 0.3 wall width
+        let wall_half_l = 0.9;  // half of ~1.8 wall length
+
+        // Determine wall orientation from rotation
+        let is_z_axis = wall_tf.rotation == Quat::IDENTITY;
+
+        let (wx, wz) = if is_z_axis {
+            // Wall faces along Z axis: wide in Z, narrow in X
+            (wall_half_w, wall_half_l)
+        } else {
+            // Wall faces along X axis: wide in X, narrow in Z
+            (wall_half_l, wall_half_w)
+        };
+
+        // Simple AABB overlap check
+        let dx = player_pos.x - wall_pos.x;
+        let dz = player_pos.z - wall_pos.z;
+
+        let overlap_x = wx + player_radius - dx.abs();
+        let overlap_z = wz + player_radius - dz.abs();
+
+        if overlap_x > 0.0 && overlap_z > 0.0 {
+            // Push out along the axis of least penetration
+            if overlap_x < overlap_z {
+                // Push in X
+                player_tf.translation.x += overlap_x * dx.signum();
+            } else {
+                // Push in Z
+                player_tf.translation.z += overlap_z * dz.signum();
+            }
+        }
     }
 }
 

@@ -12,6 +12,8 @@ pub fn spawn_wave(
     player_query: Query<&Transform, With<Player>>,
     time: Res<Time>,
     play_timer: Res<PlayTimer>,
+    config: Res<GameConfig>,
+    enemy_query: Query<(), With<Enemy>>,
 ) {
     // 3-second delay before first wave spawns
     if wave_state.wave_number == 1 && wave_state.enemies_spawned == 0 && play_timer.0 < 3.0 {
@@ -19,6 +21,12 @@ pub fn spawn_wave(
     }
     if wave_state.enemies_spawned >= wave_state.enemies_total {
         return;
+    }
+
+    // Check max enemies on screen limit
+    let current_enemy_count = enemy_query.iter().count() as u32;
+    if current_enemy_count >= config.max_enemies_on_screen {
+        return; // Don't spawn more — already at cap
     }
 
     wave_state.spawn_timer -= time.delta_secs();

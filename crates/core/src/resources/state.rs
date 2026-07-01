@@ -8,6 +8,7 @@ pub enum AppState {
     #[default]
     Loading,
     MainMenu,
+    Settings,
     CharacterSelect,
     World,
     Dungeon,

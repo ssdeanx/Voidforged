@@ -2626,7 +2626,10 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "ir-core",
+ "ir-dungeon",
  "ir-procedural",
+ "ir-progression",
+ "ir-world",
  "rand 0.8.6",
  "serde",
 ]
@@ -2668,7 +2671,9 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_hanabi",
+ "bevy_sprite",
  "ir-core",
+ "ir-progression",
  "ir-world",
  "rand 0.8.6",
 ]

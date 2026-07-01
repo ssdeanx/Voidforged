@@ -9,15 +9,18 @@ pub fn handle_xp_gain(
     mut level_up_events: EventWriter<LevelUpEvent>,
     mut player_query: Query<&mut Player>,
     mut progression: ResMut<RunProgression>,
+    meta: Res<MetaProgression>,
 ) {
     let mut player = match player_query.get_single_mut() {
         Ok(p) => p,
         Err(_) => return,
     };
+    let wisdom_mult = crate::upgrades::utility_tier_multiplier(&meta, "xp_boost");
 
     for event in xp_events.read() {
-        player.experience += event.amount;
-        progression.xp_earned += event.amount;
+        let multiplied = (event.amount as f32 * wisdom_mult) as u64;
+        player.experience += multiplied;
+        progression.xp_earned += multiplied;
 
         // Check for level-up
         while player.experience >= player.xp_to_next {
@@ -51,7 +54,6 @@ pub fn apply_level_up(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn test_xp_to_next_formula() {

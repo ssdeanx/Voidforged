@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use ir_core::*;
-use crate::{classes, collection, combat, death, enemy, equipment, loot, pickup, player};
+use crate::{classes, collection, combat, death, enemy, equipment, pickup, player};
 
 pub struct GameplayPlugin;
 
@@ -27,6 +27,7 @@ impl Plugin for GameplayPlugin {
                 player::read_player_input,
                 player::player_movement,
                 player::apply_player_velocity,
+                player::player_world_collision,
             ).run_if(can_move))
 
             // ── Class ability dispatchers ───────────────────────────
@@ -36,6 +37,7 @@ impl Plugin for GameplayPlugin {
                 classes::cast_ability,
                 classes::dash_ability,
                 classes::class_resource_regen,
+                classes::tick_ability_cooldowns,
             ).run_if(has_combat))
 
             // ── Class-specific sub-systems ──────────────────────────
@@ -90,7 +92,6 @@ impl Plugin for GameplayPlugin {
                 combat::apply_damage,
                 combat::apply_knockback,
                 combat::apply_stun_movement_block,
-                loot::spawn_loot_from_table,
                 combat::handle_death,
             ).chain().run_if(has_combat))
 
@@ -100,6 +101,7 @@ impl Plugin for GameplayPlugin {
                 combat::tick_stun,
                 combat::tick_hit_stun,
                 combat::tick_hit_stop,
+                combat::tick_hit_flash,
             ).run_if(has_combat))
 
             // ── Hitbox processing ──────────────────────────────────
@@ -113,13 +115,13 @@ impl Plugin for GameplayPlugin {
                 pickup::gem_magnet,
                 pickup::collect_health_pickups,
                 pickup::collect_gold_pickups,
+                pickup::item_pickup_interaction,
                 collection::collect_gems,
             ).run_if(has_combat))
 
             // ── Stamina systems ───────────────────────────────────
             .add_systems(Update, (
                 combat::stamina_regen,
-                combat::sprint_stamina_drain,
             ).run_if(has_combat))
 
             // ── Equipment systems ──────────────────────────────────

@@ -21,11 +21,5 @@ pub mod client;
 #[cfg(feature = "multiplayer")]
 pub mod server;
 
-pub use plugin::{IsMultiplayer, NetworkPlugin};
+pub use plugin::NetworkPlugin;
 pub use protocol::*;
-
-#[cfg(feature = "multiplayer")]
-pub use client::{ClientConfig, ConnectionState, NetworkClient};
-
-#[cfg(feature = "multiplayer")]
-pub use server::{ClientConnection, ClientId, NetworkServer, Room, RoomId, SessionId};

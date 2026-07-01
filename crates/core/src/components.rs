@@ -2,6 +2,71 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // ============================================================================
+// Class Resource Component — per-class resource (Rage, Holy Power, Energy, Focus, Mana)
+// ============================================================================
+
+/// Per-class resource pool used to fuel abilities.
+#[derive(Component, Debug, Clone)]
+pub struct ClassResource {
+    pub current: f32,
+    pub max: f32,
+    pub regen_rate: f32,
+}
+
+impl ClassResource {
+    pub fn new(max: f32, regen_rate: f32) -> Self {
+        Self { current: max, max, regen_rate }
+    }
+    pub fn has(&self, amount: f32) -> bool { self.current >= amount }
+    pub fn spend(&mut self, amount: f32) { self.current = (self.current - amount).max(0.0); }
+    pub fn fraction(&self) -> f32 { if self.max > 0.0 { self.current / self.max } else { 0.0 } }
+    pub fn can_afford(&self, amount: f32) -> bool { self.current >= amount }
+    pub fn spend_resource(&mut self, amount: f32) -> bool {
+        if self.current >= amount { self.current = (self.current - amount).max(0.0); true } else { false }
+    }
+}
+
+/// Cooldown timers for each ability slot — replaces ad-hoc `Local<f32>`.
+#[derive(Component, Debug, Clone)]
+pub struct AbilityCooldowns {
+    pub primary: f32,
+    pub secondary: f32,
+    pub cast: f32,
+}
+
+impl Default for AbilityCooldowns {
+    fn default() -> Self {
+        Self {
+            primary: 0.0,
+            secondary: 0.0,
+            cast: 0.0,
+        }
+    }
+}
+
+impl AbilityCooldowns {
+    pub fn tick(&mut self, dt: f32) {
+        self.primary = (self.primary - dt).max(0.0);
+        self.secondary = (self.secondary - dt).max(0.0);
+        self.cast = (self.cast - dt).max(0.0);
+    }
+}
+
+/// Forced movement — general-purpose component for knockback, charge, disengage, etc.
+/// Applied on top of normal movement so it doesn't override player input.
+#[derive(Component, Debug, Clone)]
+pub struct ForcedMovement {
+    pub velocity: Vec3,
+    pub damping: f32,
+}
+
+impl ForcedMovement {
+    pub fn new(velocity: Vec3, damping: f32) -> Self {
+        Self { velocity, damping }
+    }
+}
+
+// ============================================================================
 // Character Class
 // ============================================================================
 
@@ -116,6 +181,17 @@ impl CharacterClass {
         }
     }
 
+    pub fn is_unlocked(&self, unlocks: &[String]) -> bool {
+        match self.starting_weapon().kind {
+            WeaponKind::Sword => true, // Sword and Aura are always available
+            WeaponKind::Aura | WeaponKind::MagicMissile | WeaponKind::Whip => true,
+            kind => {
+                let name = format!("{:?}", kind).to_lowercase();
+                unlocks.iter().any(|u| u == &name)
+            }
+        }
+    }
+
     pub fn starting_weapon(&self) -> Weapon {
         match self {
             Self::Warrior => Weapon::new(WeaponKind::Sword, 14.0, 1.0, 3.5),
@@ -123,6 +199,19 @@ impl CharacterClass {
             Self::Rogue => Weapon::new(WeaponKind::Dagger, 8.0, 2.0, 2.5),
             Self::Hunter => Weapon::new(WeaponKind::Bow, 15.0, 1.2, 25.0),
             Self::Mage => Weapon::new(WeaponKind::Staff, 18.0, 0.8, 20.0),
+        }
+    }
+
+    /// Returns resource costs for each ability slot: (primary, secondary, cast, dash).
+    /// Most classes have 0-cost for some slots (e.g. Warrior has no resource cost on any slot,
+    /// generating Rage by dealing/taking damage instead).
+    pub fn resource_costs(&self) -> (f32, f32, f32, f32) {
+        match self {
+            Self::Warrior => (0.0, 0.0, 0.0, 0.0),
+            Self::Paladin => (0.0, 3.0, 0.0, 0.0), // Holy Light costs 3 Holy Power
+            Self::Rogue => (15.0, 20.0, 0.0, 0.0),
+            Self::Hunter => (10.0, 15.0, 0.0, 0.0),
+            Self::Mage => (20.0, 15.0, 30.0, 0.0),
         }
     }
 
@@ -187,7 +276,7 @@ impl std::str::FromStr for CharacterClass {
 }
 
 /// Identifiers for every class ability.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ClassAbilityId {
     // Warrior
     MeleeCleave,
@@ -214,6 +303,34 @@ pub enum ClassAbilityId {
     Frostbolt,
     ArcaneBlast,
     Blink,
+}
+
+impl ClassAbilityId {
+    /// Human-readable ability name for the HUD action bar.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Self::MeleeCleave => "Cleave",
+            Self::ShieldBlock => "Shield",
+            Self::Charge => "Charge",
+            Self::CombatRoll => "Roll",
+            Self::RighteousStrike => "Strike",
+            Self::HolyLight => "Heal",
+            Self::Consecration => "Consecrate",
+            Self::DivineSteed => "Steed",
+            Self::Backstab => "Backstab",
+            Self::PoisonBlade => "Poison",
+            Self::Vanish => "Vanish",
+            Self::Shadowstep => "Shadowstep",
+            Self::AimedShot => "Aimed Shot",
+            Self::MultiShot => "Multi Shot",
+            Self::Trap => "Trap",
+            Self::Disengage => "Disengage",
+            Self::Fireball => "Fireball",
+            Self::Frostbolt => "Frostbolt",
+            Self::ArcaneBlast => "Arcane Blast",
+            Self::Blink => "Blink",
+        }
+    }
 }
 
 /// Component attached to the player — holds their class identity.
@@ -538,17 +655,25 @@ pub struct Stamina {
     pub current: f32,
     pub max: f32,
     pub regen_rate: f32,
+    /// Prevents regen for this many seconds after spending stamina (wow-style lockout).
+    pub stamina_lockout_timer: f32,
 }
 
 impl Default for Stamina {
     fn default() -> Self {
-        Self { current: 100.0, max: 100.0, regen_rate: 15.0 }
+        Self { current: 100.0, max: 100.0, regen_rate: 15.0, stamina_lockout_timer: 0.0 }
     }
 }
 
 impl Stamina {
     pub fn has(&self, amount: f32) -> bool { self.current >= amount }
-    pub fn spend(&mut self, amount: f32) { self.current = (self.current - amount).max(0.0); }
+    pub fn spend(&mut self, amount: f32) {
+        self.current = (self.current - amount).max(0.0);
+        self.stamina_lockout_timer = 1.0;
+    }
+    pub fn spend_silent(&mut self, amount: f32) {
+        self.current = (self.current - amount).max(0.0);
+    }
     pub fn fraction(&self) -> f32 { self.current / self.max }
 }
 
@@ -673,6 +798,25 @@ pub struct EnemyProjectileMarker;
 /// Marker for dash trail particle entity.
 #[derive(Component, Debug, Clone)]
 pub struct DashTrail;
+
+/// HitFlash — brief white emissive overlay when damaged.
+/// Applied by damage sources, ticked by tick_hit_flash, visually rendered
+/// by the rendering plugin's material swap.
+#[derive(Component, Debug, Clone)]
+pub struct HitFlash {
+    pub remaining: f32,
+}
+
+impl HitFlash {
+    pub fn new(duration: f32) -> Self {
+        Self { remaining: duration }
+    }
+}
+
+/// A marker component for projectile trail segments.
+/// Spawned behind projectiles, auto-cleaned by Lifetime.
+#[derive(Component, Debug, Clone)]
+pub struct TrailSegment;
 
 /// Respawn timer component for dead players awaiting respawn.
 #[derive(Component, Debug, Clone)]
