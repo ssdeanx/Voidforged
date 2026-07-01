@@ -9,3 +9,5 @@ bevy_hanabi = { workspace = true }
 ir-core = { path = "../core" }
 ir-world = { path = "../world" }
 rand = { workspace = true }
+ron = { workspace = true }
+serde = { workspace = true }

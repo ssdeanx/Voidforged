@@ -148,6 +148,12 @@ pub fn enemy_ai(
         velocity.0 = Vec3::new(behavior.x, 0.0, behavior.z);
     }
 }
+/// Boss-specific phase-based AI for when the enemy variant is `Boss`.
+///
+/// Changes behavior based on HP thresholds:
+/// - Phase 1 (>60%): standard approach at 50% speed
+/// - Phase 2 (30-60%): faster with shorter windup
+/// - Phase 3 (<30%): enrage with fast attacks and ground slam AoE
 pub fn boss_phase_ai(
     _time: Res<Time>,
     mut boss_query: Query<(

@@ -8,6 +8,11 @@ use crate::{
     hud::{self},
     lighting, spawn,
 };
+use crate::asset_pipeline::{
+    animation::tick_animation_clips,
+    loader::assign_scene_from_slot,
+    AssetPipelinePlugin,
+};
 
 /// Marker for billboard sprites that always face the camera.
 #[derive(Component)]
@@ -18,7 +23,11 @@ pub struct RenderingPlugin;
 impl Plugin for RenderingPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_plugins((HanabiPlugin, MaterialPlugin::<GlowMaterial>::default()))
+            .add_plugins((
+                HanabiPlugin,
+                MaterialPlugin::<GlowMaterial>::default(),
+                AssetPipelinePlugin,   // GLTF asset pipeline (config, loading, slots)
+            ))
 
             // Startup — camera + lights
             .add_systems(Startup, (
@@ -88,12 +97,14 @@ impl Plugin for RenderingPlugin {
             .add_systems(Update, (
                 hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::World)),
                 hud::update_damage_numbers.run_if(in_state(ir_core::AppState::World)),
+                assign_scene_from_slot.run_if(in_state(ir_core::AppState::World)),
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::World)),
                 assign_enemy_mesh.run_if(in_state(ir_core::AppState::World)),
                 assign_pickup_mesh.run_if(in_state(ir_core::AppState::World)),
                 assign_shadow.run_if(in_state(ir_core::AppState::World)),
                 rotate_billboards.run_if(in_state(ir_core::AppState::World)),
                 cleanup_lifetime.run_if(in_state(ir_core::AppState::World)),
+
             ))
             // Dungeon — combat instances
             .add_systems(OnEnter(ir_core::AppState::Dungeon), (
@@ -121,6 +132,7 @@ impl Plugin for RenderingPlugin {
                 hud::spawn_damage_numbers.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_damage_numbers.run_if(in_state(ir_core::AppState::Dungeon)),
                 hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::Dungeon)),
+                assign_scene_from_slot.run_if(in_state(ir_core::AppState::Dungeon)),
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::Dungeon)),
                 assign_enemy_mesh.run_if(in_state(ir_core::AppState::Dungeon)),
                 assign_pickup_mesh.run_if(in_state(ir_core::AppState::Dungeon)),
@@ -128,6 +140,7 @@ impl Plugin for RenderingPlugin {
                 rotate_billboards.run_if(in_state(ir_core::AppState::Dungeon)),
                 spawn_impact_effect.run_if(in_state(ir_core::AppState::Dungeon)),
                 cleanup_lifetime.run_if(in_state(ir_core::AppState::Dungeon)),
+
             ))
 
             // Playing — spawns player and HUD (used after GameOver→restart)
@@ -155,6 +168,7 @@ impl Plugin for RenderingPlugin {
             .add_systems(Update, (
                 hud::update_enemy_nameplates.run_if(in_state(ir_core::AppState::Playing)),
                 hud::update_damage_numbers.run_if(in_state(ir_core::AppState::Playing)),
+                assign_scene_from_slot.run_if(in_state(ir_core::AppState::Playing)),
                 assign_projectile_mesh.run_if(in_state(ir_core::AppState::Playing)),
                 assign_enemy_mesh.run_if(in_state(ir_core::AppState::Playing)),
                 assign_pickup_mesh.run_if(in_state(ir_core::AppState::Playing)),
@@ -162,6 +176,7 @@ impl Plugin for RenderingPlugin {
                 rotate_billboards.run_if(in_state(ir_core::AppState::Playing)),
                 spawn_impact_effect.run_if(in_state(ir_core::AppState::Playing)),
                 cleanup_lifetime.run_if(in_state(ir_core::AppState::Playing)),
+                tick_animation_clips.run_if(in_state(ir_core::AppState::Playing)),
             ))
 
             // Paused — overlay
@@ -211,10 +226,11 @@ fn cleanup_lifetime(
 }
 
 /// Assigns a default visible mesh/material to projectile entities that lack one.
+/// Skips entities that already have a `SceneRoot` from the asset pipeline.
 fn assign_projectile_mesh(
     mut commands: Commands,
     assets: Res<ir_core::GameAssets>,
-    projectiles: Query<Entity, (With<ir_core::Projectile>, Without<Mesh3d>)>,
+    projectiles: Query<Entity, (With<ir_core::Projectile>, Without<Mesh3d>, Without<SceneRoot>)>,
 ) {
     for entity in projectiles.iter() {
         commands.entity(entity).insert((
@@ -226,10 +242,12 @@ fn assign_projectile_mesh(
 }
 
 /// Assigns visible mesh/material to enemy entities based on their variant.
+/// Skips enemies that already have a `SceneRoot` from the asset pipeline
+/// (i.e., a GLTF model was loaded for them).
 fn assign_enemy_mesh(
     mut commands: Commands,
     assets: Res<ir_core::GameAssets>,
-    enemies: Query<(Entity, &ir_core::Enemy), (Without<Mesh3d>, With<ir_core::Enemy>)>,
+    enemies: Query<(Entity, &ir_core::Enemy), (Without<Mesh3d>, With<ir_core::Enemy>, Without<SceneRoot>)>,
 ) {
     for (entity, enemy) in enemies.iter() {
         let idx = match enemy.variant {
@@ -252,11 +270,12 @@ fn assign_enemy_mesh(
 }
 
 /// Assigns visible mesh/material to health/gold pickups, XP gems that lack them.
+/// Skips entities with a `SceneRoot` from the asset pipeline.
 fn assign_pickup_mesh(
     mut commands: Commands,
     assets: Res<ir_core::GameAssets>,
-    gems: Query<Entity, (With<ir_core::ExperienceGem>, Without<Mesh3d>)>,
-    health_pickups: Query<Entity, (With<ir_core::Pickup>, Without<Mesh3d>, Without<ir_core::ExperienceGem>)>,
+    gems: Query<Entity, (With<ir_core::ExperienceGem>, Without<Mesh3d>, Without<SceneRoot>)>,
+    health_pickups: Query<Entity, (With<ir_core::Pickup>, Without<Mesh3d>, Without<ir_core::ExperienceGem>, Without<SceneRoot>)>,
 ) {
     for entity in gems.iter() {
         commands.entity(entity).insert((

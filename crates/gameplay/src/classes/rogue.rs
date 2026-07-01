@@ -10,10 +10,12 @@ pub fn resource_config() -> ClassResource {
     ClassResource::new(100.0, 20.0) // 100 Energy, regen 20/sec
 }
 
-/// Marker for vanish buff — next attack auto-crits.
+/// Marker for Vanish buff — next attack auto-crits.
 #[derive(Component)]
 pub struct VanishBuff {
+    /// Remaining duration in seconds.
     pub remaining: f32,
+    /// When true, the next attack deals a guaranteed critical hit.
     pub guaranteed_crit: bool,
 }
 
@@ -54,12 +56,17 @@ pub fn primary_backstab(
 /// Applies a stacking poison DoT to the target.
 #[derive(Component)]
 pub struct PoisonDoT {
+    /// Damage dealt per tick.
     pub damage: f32,
+    /// Remaining duration in seconds.
     pub remaining: f32,
+    /// Time until next tick.
     pub tick_timer: f32,
+    /// Current stack count.
     pub stack: u32,
 }
 
+/// Applies a stacking poison DoT to the nearest enemy within range.
 pub fn secondary_poison_blade(
     commands: &mut Commands,
     _attacker: Entity,

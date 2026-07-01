@@ -19,6 +19,10 @@ fn label(s: &str, size: f32, color: Color) -> impl Bundle {
 }
 
 /// Spawns the full in-game HUD — root container and all child elements.
+///
+/// Creates a full-screen absolute-positioned root node and adds the player
+/// frame, target frame, XP bar, zone tracker, interaction prompt, and
+/// action bar as children.
 pub fn spawn_hud(mut commands: Commands) {
     commands
         .spawn((
@@ -155,6 +159,8 @@ fn spawn_prompt(parent: &mut ChildBuilder) {
 }
 
 /// Despawns the entire HUD.
+///
+/// Finds all entities with `HudRoot` and recursively despawns them.
 pub fn despawn_hud(mut commands: Commands, hud: Query<Entity, With<HudRoot>>) {
     for entity in hud.iter() {
         commands.entity(entity).despawn_recursive();

@@ -1,3 +1,6 @@
+//! Loot drop system — spawns XP gems, health pickups, and gold based on
+//! enemy variant and wave tier.
+
 use bevy::prelude::*;
 use ir_core::*;
 use rand::Rng;

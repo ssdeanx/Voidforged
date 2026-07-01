@@ -5,16 +5,29 @@ use serde::{Deserialize, Serialize};
 use crate::items::{EquipSlot, ItemInstance, StatType};
 use crate::resources::ItemDatabase;
 
-/// Currently equipped items across 8 gear slots.
+/// Currently equipped items across all gear slots.
+///
+/// Each slot corresponds to an [`EquipSlot`] variant. Equipping replaces
+/// the current item; unequipping moves it back to the inventory.
+/// [`apply_stats`](Self::apply_stats) sums all equipped item modifiers
+/// into a [`CombatStats`](crate::components::CombatStats) struct.
 #[derive(Debug, Clone, Component, Serialize, Deserialize)]
 pub struct Equipment {
+    /// Main-hand weapon slot.
     pub weapon: Option<ItemInstance>,
+    /// Off-hand / shield slot.
     pub offhand: Option<ItemInstance>,
+    /// Helmet armour slot.
     pub helmet: Option<ItemInstance>,
+    /// Chest armour slot.
     pub chest: Option<ItemInstance>,
+    /// Boots armour slot.
     pub boots: Option<ItemInstance>,
+    /// Ring accessory slot.
     pub ring: Option<ItemInstance>,
+    /// Amulet accessory slot.
     pub amulet: Option<ItemInstance>,
+    /// Trinket accessory slot.
     pub trinket: Option<ItemInstance>,
 }
 
@@ -29,7 +42,9 @@ impl Default for Equipment {
 }
 
 impl Equipment {
-    /// Equip an item into the given slot. Returns the previously equipped item, if any.
+    /// Equips an item into the given slot.
+    ///
+    /// Returns the previously equipped item in that slot, if any.
     pub fn equip(&mut self, item: ItemInstance, slot: EquipSlot) -> Option<ItemInstance> {
         let target = self.slot_mut(slot);
         let old = target.take();
@@ -37,7 +52,7 @@ impl Equipment {
         old
     }
 
-    /// Unequip the item in the given slot. Returns the item, if any.
+    /// Unequips the item in the given slot, returning it (if any).
     pub fn unequip(&mut self, slot: EquipSlot) -> Option<ItemInstance> {
         self.slot_mut(slot).take()
     }
@@ -73,9 +88,11 @@ impl Equipment {
         }
     }
 
-    /// Applies all equipped item stats to a CombatStats struct.
-    /// Looks up each ItemInstance's def_id in ItemDatabase and sums StatMod values.
-    /// Returns a vec of applied stat changes for logging.
+    /// Sums all equipped item stat modifiers into the given `CombatStats`.
+    ///
+    /// Looks up each item's definition in the database, accumulates its
+    /// `base_stats` onto the supplied stats struct, and returns a vector
+    /// of human-readable change descriptions for logging / UI.
     pub fn apply_stats(&self, db: &ItemDatabase, stats: &mut crate::components::CombatStats) -> Vec<String> {
         let mut changes: Vec<String> = Vec::new();
         let slots = [

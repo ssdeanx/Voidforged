@@ -11,9 +11,12 @@ pub fn resource_config() -> ClassResource {
 }
 
 /// Temporary damage reduction buff.
+/// Temporary damage reduction buff applied by Shield Block.
 #[derive(Component)]
 pub struct ShieldBlock {
+    /// Remaining duration in seconds.
     pub remaining: f32,
+    /// Damage reduction multiplier (0.0–1.0).
     pub reduction: f32,
 }
 
@@ -52,6 +55,7 @@ pub fn primary_melee_cleave(
 
 // ── Secondary: Shield Block ───────────────────────────────────────────────
 
+/// Applies the Shield Block buff to the player, granting damage reduction.
 pub fn secondary_shield_block(
     commands: &mut Commands,
     player: Entity,
@@ -64,12 +68,16 @@ pub fn secondary_shield_block(
 
 // ── Cast: Charge ──────────────────────────────────────────────────────────
 
+/// Charging state for the Warrior's Charge ability.
 #[derive(Component)]
 pub struct Charging {
+    /// World-space target position to charge toward.
     pub target: Vec3,
+    /// Movement speed during the charge.
     pub speed: f32,
 }
 
+/// Spawns a Charge marker entity that moves the player toward the cursor position.
 pub fn cast_charge(
     commands: &mut Commands,
     _transform: &Transform,
@@ -82,6 +90,10 @@ pub fn cast_charge(
     ));
 }
 
+/// Applies charge movement — moves the player toward the charge target each frame.
+///
+/// Reads the `Charging` component and moves the player entity at `speed`
+/// toward `target`. Removes the `Lifetime` when the target is reached.
 pub fn apply_charge_movement(
     time: Res<Time>,
     charge_query: Query<(&Charging, &Lifetime)>,
@@ -164,6 +176,10 @@ pub fn warrior_rage_on_take_damage(
 
 // ── Dash: Combat Roll ─────────────────────────────────────────────────────
 
+/// Dash ability for Warrior: Combat Roll (standard dodge).
+///
+/// This is a placeholder — the dash behavior is handled by the
+/// generic `dash_ability` system in `abilities.rs`.
 pub fn dash_combat_roll() {
     // Standard dodge — handled by dash_ability system
 }
