@@ -188,8 +188,7 @@ pub fn spawn_companions(
             },
             PlayerClass(class),
             Health::new(100.0 + (i as f32) * 25.0),
-            ClassResource::new(100.0, 100.0, 5.0),
-            Enemy,
+            ClassResource::new(100.0, 5.0),
             RaidEntity,
         ));
     }
@@ -335,7 +334,7 @@ pub fn generate_raid(
                         Mesh3d(enemy_mesh.clone()),
                         MeshMaterial3d(enemy_mat_elite.clone()),
                         Transform::from_xyz(wx, 0.0, wz),
-                        Enemy { variant: EnemyVariant::Elite, tier: instance.tier as u16, xp_reward: 20 * instance.tier },
+                        Enemy { variant: EnemyVariant::Elite, tier: instance.tier, xp_reward: 20 * instance.tier as u64 },
                         Health::new(80.0 * (1.0 + instance.tier as f32 * 0.3)),
                         CombatStats::default(),
                         RoomEntity,
@@ -350,7 +349,7 @@ pub fn generate_raid(
                     Mesh3d(enemy_mesh.clone()),
                     MeshMaterial3d(enemy_mat_elite.clone()),
                     Transform::from_xyz(cx, 0.0, cz),
-                    Enemy { variant: EnemyVariant::Elite, tier: (instance.tier + 1) as u16, xp_reward: 50 * instance.tier },
+                    Enemy { variant: EnemyVariant::Elite, tier: instance.tier + 1, xp_reward: 50 * instance.tier as u64 },
                     Health::new(200.0 * (1.0 + instance.tier as f32 * 0.4)),
                     CombatStats::default(),
                     BossMarker,
@@ -365,7 +364,7 @@ pub fn generate_raid(
                     Mesh3d(enemy_mesh.clone()),
                     MeshMaterial3d(enemy_mat_boss.clone()),
                     Transform::from_xyz(cx, 0.0, cz).with_scale(Vec3::splat(1.5)),
-                    Enemy { variant: EnemyVariant::Boss, tier: (instance.tier + 2) as u16, xp_reward: 200 * instance.tier },
+                    Enemy { variant: EnemyVariant::Boss, tier: instance.tier + 2, xp_reward: 200 * instance.tier as u64 },
                     Health::new(500.0 * (1.0 + instance.tier as f32 * 0.5)),
                     CombatStats::default(),
                     BossMarker,
@@ -417,18 +416,17 @@ pub fn check_raid_exit(
     mut next_state: ResMut<NextState<AppState>>,
     mut dungeon_state: ResMut<DungeonState>,
 ) {
-    if let Some(instance) = &raid_state.current {
-        let bosses_alive = boss_query.iter().count();
-        raid_state.bosses_remaining = bosses_alive as u32;
+    let bosses_alive = boss_query.iter().count();
+    raid_state.bosses_remaining = bosses_alive as u32;
 
-        if bosses_alive == 0 {
-            info!("Raid {} completed! All bosses defeated.", instance.name);
+    // Check if all bosses are defeated and player is near any exit
+    if bosses_alive == 0 && raid_state.current.is_some() {
+        info!("Raid completed! All bosses defeated.");
 
-            // Clear raid state, transition back to World
-            raid_state.current = None;
-            dungeon_state.current = None;
-            next_state.set(AppState::World);
-        }
+        // Clear raid state, transition back to World
+        raid_state.current = None;
+        dungeon_state.current = None;
+        next_state.set(AppState::World);
     }
 }
 

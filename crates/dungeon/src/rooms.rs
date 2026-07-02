@@ -72,11 +72,9 @@ pub(crate) enum RoomKind {
 /// A room template defines floor tiles, pillar positions, and interior walls.
 pub(crate) struct RoomLayout {
     /// Relative tile positions (tx, tz) within the room's bounding box.
-    tiles: Vec<(i32, i32)>,
-    /// Bounding box width in tiles.
-    width: i32,
-    /// Bounding box height in tiles.
-    height: i32,
+    pub(crate) tiles: Vec<(i32, i32)>,
+    pub(crate) width: i32,
+    pub(crate) height: i32,
     /// Pillar positions relative to room origin.
     pillars: Vec<(i32, i32)>,
     /// Interior wall segments: ((tx, tz), is_z_axis) where tx/tz is the tile
