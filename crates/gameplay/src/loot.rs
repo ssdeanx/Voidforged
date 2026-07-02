@@ -142,6 +142,32 @@ pub fn table_for_variant(variant: &EnemyVariant) -> LootTable {
             LootEntry::new("iron_boots", 4.0, 0.30),
             LootEntry::new("iron_helm", 4.0, 0.30),
         ]),
+        EnemyVariant::Caster => LootTable::new(vec![
+            LootEntry::new("health_potion", 8.0, 0.35),
+            LootEntry::new("apprentice_staff", 4.0, 0.12),
+            LootEntry::new("mana_crystal", 3.0, 0.10),
+        ]),
+        EnemyVariant::Healer => LootTable::new(vec![
+            LootEntry::new("health_potion", 10.0, 0.50),
+            LootEntry::new("healing_rod", 3.0, 0.08),
+        ]),
+        EnemyVariant::Summoner => LootTable::new(vec![
+            LootEntry::new("health_potion", 6.0, 0.40),
+            LootEntry::new("summoning_crystal", 4.0, 0.15),
+            LootEntry::new("silver_ring", 2.0, 0.06),
+        ]),
+        EnemyVariant::Assassin => LootTable::new(vec![
+            LootEntry::new("health_potion", 6.0, 0.30),
+            LootEntry::new("poison_vial", 5.0, 0.15),
+            LootEntry::new("steel_dagger", 4.0, 0.12),
+            LootEntry::new("shadow_cloak", 3.0, 0.08),
+        ]),
+        EnemyVariant::Brute => LootTable::new(vec![
+            LootEntry::new("health_potion", 8.0, 0.40),
+            LootEntry::new("steel_sword", 4.0, 0.12),
+            LootEntry::new("iron_helm", 3.0, 0.10),
+            LootEntry::new("chainmail", 3.0, 0.08),
+        ]),
     }
 }
 

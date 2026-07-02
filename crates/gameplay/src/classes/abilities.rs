@@ -179,7 +179,7 @@ pub fn cast_ability(
         CharacterClass::Rogue => rogue::cast_vanish(&mut commands, entity),
         CharacterClass::Hunter => hunter::cast_trap(&mut commands, transform),
         CharacterClass::Mage => mage::cast_arcane_blast(
-            &mut commands, transform, stats, &cursor, &enemies,
+            &mut commands, entity, transform, stats, &cursor, &enemies,
             &mut damage_events, &mut dmg_num_events, &mut impact_events,
         ),
     }
@@ -356,5 +356,152 @@ pub fn tick_ability_cooldowns(
     let dt = time.delta_secs();
     for mut cooldowns in query.iter_mut() {
         cooldowns.tick(dt);
+    }
+}
+
+// ── Utility Ability (slot 5, spec-dependent) ──────────────────────────
+
+/// Dispatches the player's utility ability based on their class and spec.
+///
+/// Has a 6-second base cooldown. Routes to War Cry / Taunt / Blessing of Might
+/// / Hammer of Justice / Deadly Poison / Smoke Bomb / Hunter's Mark / Call Pet
+/// / Blizzard / Combustion depending on spec.
+pub fn utility_ability(
+    mut commands: Commands,
+    time: Res<Time>,
+    input: Res<PlayerInput>,
+    cursor: Res<CursorWorldPos>,
+    mut player_query: Query<(
+        Entity, &Transform, &PlayerClass, &ChosenSpec, &CombatStats,
+        &mut ClassResource, &mut AbilityCooldowns,
+    ), With<Player>>,
+    enemies: Query<(Entity, &Transform), With<Enemy>>,
+    mut damage_events: EventWriter<DamageEvent>,
+    mut dmg_num_events: EventWriter<DamageNumberEvent>,
+    mut impact_events: EventWriter<SpawnImpactEvent>,
+) {
+    let Ok((entity, transform, class, spec, stats, mut resource, mut cooldowns))
+        = player_query.get_single_mut() else { return; };
+    if !input.utility { return; }
+
+    let base_cd = 6.0;
+    let effective_cd = scaled_cooldown(base_cd, stats);
+    if cooldowns.utility > 0.0 { return; }
+    cooldowns.utility = effective_cd;
+
+    // All utilities are free (no resource cost) for now
+    match (class.0, spec.spec) {
+        (CharacterClass::Warrior, TalentSpec::Berserker) =>
+            warrior::utility_war_cry(&mut commands, entity, stats),
+        (CharacterClass::Warrior, TalentSpec::Protector) =>
+            warrior::utility_taunt(&mut commands, entity, stats, &enemies),
+        (CharacterClass::Paladin, TalentSpec::Holy) =>
+            paladin::utility_blessing_of_might(&mut commands, entity, stats),
+        (CharacterClass::Paladin, TalentSpec::Retribution) =>
+            paladin::utility_hammer_of_justice(
+                &mut commands, entity, transform, stats, &enemies,
+                &mut damage_events, &mut dmg_num_events, &mut impact_events,
+            ),
+        (CharacterClass::Rogue, TalentSpec::Assassination) =>
+            rogue::utility_deadly_poison(
+                &mut commands, entity, stats,
+                &mut damage_events, &mut impact_events,
+            ),
+        (CharacterClass::Rogue, TalentSpec::Outlaw) =>
+            rogue::utility_smoke_bomb(&mut commands, transform),
+        (CharacterClass::Hunter, TalentSpec::Marksmanship) =>
+            hunter::utility_hunters_mark(
+                &mut commands, transform, stats, &enemies,
+                &mut damage_events, &mut impact_events,
+            ),
+        (CharacterClass::Hunter, TalentSpec::Survival) =>
+            hunter::utility_call_pet(&mut commands, transform),
+        (CharacterClass::Mage, TalentSpec::Frost) =>
+            mage::utility_blizzard(
+                &mut commands, transform, stats, &cursor,
+                &mut damage_events, &mut impact_events,
+            ),
+        (CharacterClass::Mage, TalentSpec::Fire) =>
+            mage::utility_combustion(
+                &mut commands, entity, stats,
+            ),
+        _ => {} // fallback: no utility for unhandled combos
+    }
+}
+
+// ── Ultimate Ability (slot 6, spec-dependent) ─────────────────────────
+
+/// Dispatches the player's ultimate ability based on their class and spec.
+///
+/// Has a 30-second base cooldown. Routes to Berserker Rage / Shield Wall /
+/// Divine Intervention / Avenging Wrath / Rupture / Blade Flurry /
+/// Rapid Fire / Explosive Trap / Water Elemental / Meteor depending on spec.
+pub fn ultimate_ability(
+    mut commands: Commands,
+    time: Res<Time>,
+    input: Res<PlayerInput>,
+    cursor: Res<CursorWorldPos>,
+    mut player_query: Query<(
+        Entity, &Transform, &PlayerClass, &ChosenSpec, &CombatStats,
+        &mut ClassResource, &mut AbilityCooldowns,
+    ), With<Player>>,
+    enemies: Query<(Entity, &Transform), With<Enemy>>,
+    mut damage_events: EventWriter<DamageEvent>,
+    mut dmg_num_events: EventWriter<DamageNumberEvent>,
+    mut impact_events: EventWriter<SpawnImpactEvent>,
+) {
+    let Ok((entity, transform, class, spec, stats, mut resource, mut cooldowns))
+        = player_query.get_single_mut() else { return; };
+    if !input.ultimate { return; }
+
+    let base_cd = 30.0;
+    let effective_cd = scaled_cooldown(base_cd, stats);
+    if cooldowns.ultimate > 0.0 { return; }
+    cooldowns.ultimate = effective_cd;
+
+    // All ultimates are free (no resource cost) for now
+    match (class.0, spec.spec) {
+        (CharacterClass::Warrior, TalentSpec::Berserker) =>
+            warrior::ultimate_berserker_rage(&mut commands, entity, stats),
+        (CharacterClass::Warrior, TalentSpec::Protector) =>
+            warrior::ultimate_shield_wall(&mut commands, entity, stats),
+        (CharacterClass::Paladin, TalentSpec::Holy) =>
+            paladin::ultimate_divine_intervention(
+                &mut commands, entity, transform, stats,
+                &mut damage_events, &mut impact_events,
+            ),
+        (CharacterClass::Paladin, TalentSpec::Retribution) =>
+            paladin::ultimate_avenging_wrath(
+                &mut commands, entity, transform, stats, &enemies,
+                &mut damage_events, &mut dmg_num_events, &mut impact_events,
+            ),
+        (CharacterClass::Rogue, TalentSpec::Assassination) =>
+            rogue::ultimate_rupture(
+                &mut commands, entity, transform, stats, &enemies,
+                &mut damage_events, &mut dmg_num_events, &mut impact_events,
+            ),
+        (CharacterClass::Rogue, TalentSpec::Outlaw) =>
+            rogue::ultimate_blade_flurry(
+                &mut commands, entity, transform, stats, &enemies,
+                &mut damage_events, &mut dmg_num_events, &mut impact_events,
+            ),
+        (CharacterClass::Hunter, TalentSpec::Marksmanship) =>
+            hunter::ultimate_rapid_fire(
+                &mut commands, transform, stats, &cursor,
+                &mut damage_events, &mut dmg_num_events, &mut impact_events,
+            ),
+        (CharacterClass::Hunter, TalentSpec::Survival) =>
+            hunter::ultimate_explosive_trap(
+                &mut commands, transform, stats,
+                &mut damage_events, &mut impact_events,
+            ),
+        (CharacterClass::Mage, TalentSpec::Frost) =>
+            mage::ultimate_water_elemental(&mut commands, transform),
+        (CharacterClass::Mage, TalentSpec::Fire) =>
+            mage::ultimate_meteor(
+                &mut commands, transform, stats, &cursor,
+                &mut damage_events, &mut impact_events,
+            ),
+        _ => {} // fallback
     }
 }

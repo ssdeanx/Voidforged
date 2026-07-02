@@ -3,7 +3,7 @@
 //!
 //! These components are the building blocks of every entity in the game.
 //! Related types (bundles, events, resources) live in their own modules.
-
+use crate::specs::TalentSpec;
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -32,13 +32,16 @@ impl ClassResource {
     }
 }
 
-/// Cooldown timers for each ability slot — replaces ad-hoc `Local<f32>`.
+/// Tracks per-ability cooldown timers for the player's class abilities.
+/// Each field is the remaining cooldown in seconds (0.0 = ready).
 #[derive(Component, Debug, Clone)]
 pub struct AbilityCooldowns {
     pub primary: f32,
     pub secondary: f32,
     pub cast: f32,
     pub dash: f32,
+    pub utility: f32,
+    pub ultimate: f32,
 }
 
 impl Default for AbilityCooldowns {
@@ -48,16 +51,46 @@ impl Default for AbilityCooldowns {
             secondary: 0.0,
             cast: 0.0,
             dash: 0.0,
+            utility: 0.0,
+            ultimate: 0.0,
         }
     }
 }
 
 impl AbilityCooldowns {
+    /// Ticks all cooldowns down by dt (seconds).
     pub fn tick(&mut self, dt: f32) {
         self.primary = (self.primary - dt).max(0.0);
         self.secondary = (self.secondary - dt).max(0.0);
         self.cast = (self.cast - dt).max(0.0);
         self.dash = (self.dash - dt).max(0.0);
+        self.utility = (self.utility - dt).max(0.0);
+        self.ultimate = (self.ultimate - dt).max(0.0);
+    }
+
+    /// Returns the remaining cooldown (seconds) for the given ability slot.
+    pub fn for_slot(&self, slot: AbilitySlot) -> f32 {
+        match slot {
+            AbilitySlot::Primary => self.primary,
+            AbilitySlot::Secondary => self.secondary,
+            AbilitySlot::Cast => self.cast,
+            AbilitySlot::Dash => self.dash,
+            AbilitySlot::Utility => self.utility,
+            AbilitySlot::Ultimate => self.ultimate,
+        }
+    }
+
+    /// Sets the cooldown for the given ability slot.
+    pub fn set_slot(&mut self, slot: AbilitySlot, duration: f32) {
+        let val = match slot {
+            AbilitySlot::Primary => &mut self.primary,
+            AbilitySlot::Secondary => &mut self.secondary,
+            AbilitySlot::Cast => &mut self.cast,
+            AbilitySlot::Dash => &mut self.dash,
+            AbilitySlot::Utility => &mut self.utility,
+            AbilitySlot::Ultimate => &mut self.ultimate,
+        };
+        *val = duration;
     }
 }
 
@@ -284,10 +317,60 @@ impl CharacterClass {
             Self::Mage => ClassAbilityId::Blink,
         }
     }
+
+    /// Returns the [`ClassAbilityId`] for this class's utility slot (key 5),
+    /// based on the chosen spec.
+    pub fn utility_ability(&self, spec: TalentSpec) -> ClassAbilityId {
+        match (self, spec) {
+            (Self::Warrior, TalentSpec::Berserker) => ClassAbilityId::WarCry,
+            (Self::Warrior, TalentSpec::Protector) => ClassAbilityId::Taunt,
+            (Self::Paladin, TalentSpec::Holy) => ClassAbilityId::BlessingOfMight,
+            (Self::Paladin, TalentSpec::Retribution) => ClassAbilityId::HammerOfJustice,
+            (Self::Rogue, TalentSpec::Assassination) => ClassAbilityId::DeadlyPoison,
+            (Self::Rogue, TalentSpec::Outlaw) => ClassAbilityId::SmokeBomb,
+            (Self::Hunter, TalentSpec::Marksmanship) => ClassAbilityId::HuntersMark,
+            (Self::Hunter, TalentSpec::Survival) => ClassAbilityId::CallPet,
+            (Self::Mage, TalentSpec::Frost) => ClassAbilityId::Blizzard,
+            (Self::Mage, TalentSpec::Fire) => ClassAbilityId::Combustion,
+            _ => ClassAbilityId::None,
+        }
+    }
+
+    /// Returns the [`ClassAbilityId`] for this class's ultimate slot (key 6),
+    /// based on the chosen spec.
+    pub fn ultimate_ability(&self, spec: TalentSpec) -> ClassAbilityId {
+        match (self, spec) {
+            (Self::Warrior, TalentSpec::Berserker) => ClassAbilityId::BerserkerRage,
+            (Self::Warrior, TalentSpec::Protector) => ClassAbilityId::ShieldWall,
+            (Self::Paladin, TalentSpec::Holy) => ClassAbilityId::DivineIntervention,
+            (Self::Paladin, TalentSpec::Retribution) => ClassAbilityId::AvengingWrath,
+            (Self::Rogue, TalentSpec::Assassination) => ClassAbilityId::Rupture,
+            (Self::Rogue, TalentSpec::Outlaw) => ClassAbilityId::BladeFlurry,
+            (Self::Hunter, TalentSpec::Marksmanship) => ClassAbilityId::RapidFire,
+            (Self::Hunter, TalentSpec::Survival) => ClassAbilityId::ExplosiveTrap,
+            (Self::Mage, TalentSpec::Frost) => ClassAbilityId::WaterElemental,
+            (Self::Mage, TalentSpec::Fire) => ClassAbilityId::Meteor,
+            _ => ClassAbilityId::None,
+        }
+    }
+
+    /// Returns a default [`ClassResource`] pool for this class.
+    /// Used when a player entity is missing a ClassResource component (safety fallback).
+    pub fn default_resource(&self) -> ClassResource {
+        match self {
+            Self::Warrior => ClassResource::new(100.0, 2.0),
+            Self::Paladin => ClassResource::new(5.0, 0.5),
+            Self::Rogue => ClassResource::new(100.0, 20.0),
+            Self::Hunter => ClassResource::new(100.0, 8.0),
+            Self::Mage => ClassResource::new(200.0, 4.0),
+        }
+    }
 }
 
 impl Default for CharacterClass {
-    fn default() -> Self { Self::Warrior }
+    fn default() -> Self {
+        Self::Warrior
+    }
 }
 
 impl std::str::FromStr for CharacterClass {
@@ -304,80 +387,147 @@ impl std::str::FromStr for CharacterClass {
     }
 }
 
+/// Identifies which action bar slot an ability occupies.
+/// Maps to the 6-slot action bar: 1 (primary), 2 (secondary), 3 (cast),
+/// 4 (dash), 5 (utility), 6 (ultimate).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AbilitySlot {
+    Primary,
+    Secondary,
+    Cast,
+    Dash,
+    Utility,
+    Ultimate,
+}
+
 /// Identifiers for every class ability in the game.
+///
+/// Each class has 6 core abilities (primary/secondary/cast/dash/utility/ultimate)
+/// and up to 6 talent-modified variants per spec. The naming convention is
+/// `{class}_{role}_[spec]` so icon asset names map 1:1.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ClassAbilityId {
-    // Warrior
-    /// Wide cleave AoE attack.
+    // ── Warrior ──────────────────────────────────────────────────────
     MeleeCleave,
-    /// Shield block that reduces incoming damage briefly.
     ShieldBlock,
-    /// Rush toward target location, dealing impact damage.
     Charge,
-    /// Quick roll that grants brief invincibility frames.
     CombatRoll,
-    // Paladin
-    /// Righteous melee strike with bonus holy damage.
+    /// Berserker spec: AoE shout that damages + buffs party.
+    WarCry,
+    /// Berserker spec: enter rage state — fast attacks + lifesteal.
+    BerserkerRage,
+    /// Protector spec: force enemies to attack you.
+    Taunt,
+    /// Protector spec: massive damage reduction briefly.
+    ShieldWall,
+    // ── Paladin ─────────────────────────────────────────────────────
     RighteousStrike,
-    /// Heal self or nearby ally.
     HolyLight,
-    /// Consecrate ground, dealing damage over time in an area.
     Consecration,
-    /// Mount a spectral steed for brief speed boost.
     DivineSteed,
-    // Rogue
-    /// High-damage attack from behind the target.
+    /// Holy spec: buff target's damage dealt.
+    BlessingOfMight,
+    /// Holy spec: massive AoE heal around the paladin.
+    DivineIntervention,
+    /// Retribution spec: stun target briefly.
+    HammerOfJustice,
+    /// Retribution spec: enter burst damage state.
+    AvengingWrath,
+    // ── Rogue ────────────────────────────────────────────────────────
     Backstab,
-    /// Coat weapon with poison for damage-over-time.
     PoisonBlade,
-    /// Become invisible briefly, next attack deals bonus damage.
     Vanish,
-    /// Teleport behind the target.
     Shadowstep,
-    // Hunter
-    /// Precise ranged shot with bonus crit chance.
+    /// Assassination spec: weapon coating — adds deadly poison to attacks.
+    DeadlyPoison,
+    /// Assassination spec: massive bleed on target.
+    Rupture,
+    /// Outlaw spec: AoE blind + disorient.
+    SmokeBomb,
+    /// Outlaw spec: flurry of strikes — AoE burst.
+    BladeFlurry,
+    // ── Hunter ───────────────────────────────────────────────────────
     AimedShot,
-    /// Fire multiple arrows in a cone.
     MultiShot,
-    /// Place a snare trap that slows enemies.
     Trap,
-    /// Leap backward, creating distance from enemies.
     Disengage,
-    // Mage
-    /// Launch a fireball that explodes on impact.
+    /// Marksmanship spec: mark target — they take bonus damage.
+    HuntersMark,
+    /// Marksmanship spec: rapid arrow barrage.
+    RapidFire,
+    /// Survival spec: summon a pet companion.
+    CallPet,
+    /// Survival spec: big AoE explosion trap.
+    ExplosiveTrap,
+    // ── Mage ─────────────────────────────────────────────────────────
     Fireball,
-    /// Freeze a target, slowing and dealing frost damage.
     Frostbolt,
-    /// Powerful arcane burst in a cone.
     ArcaneBlast,
-    /// Short-range teleport in the movement direction.
     Blink,
+    /// Frost spec: conjure a blizzard zone — AoE slow + damage.
+    Blizzard,
+    /// Frost spec: summon a water elemental to fight for you.
+    WaterElemental,
+    /// Fire spec: ignite spell power — empower next spells.
+    Combustion,
+    /// Fire spec: massive meteor AoE.
+    Meteor,
+    // ── Generic ──────────────────────────────────────────────────────
+    /// Placeholder for unimplemented abilities.
+    None,
 }
 
 impl ClassAbilityId {
     /// Human-readable ability name for the HUD action bar.
     pub fn display_name(&self) -> &'static str {
         match self {
+            // Warrior
             Self::MeleeCleave => "Cleave",
             Self::ShieldBlock => "Shield",
             Self::Charge => "Charge",
             Self::CombatRoll => "Roll",
+            Self::WarCry => "War Cry",
+            Self::BerserkerRage => "Berserker",
+            Self::Taunt => "Taunt",
+            Self::ShieldWall => "Shield Wall",
+            // Paladin
             Self::RighteousStrike => "Strike",
             Self::HolyLight => "Heal",
             Self::Consecration => "Consecrate",
             Self::DivineSteed => "Steed",
+            Self::BlessingOfMight => "Blessing",
+            Self::DivineIntervention => "Intervene",
+            Self::HammerOfJustice => "Hammer",
+            Self::AvengingWrath => "Wrath",
+            // Rogue
             Self::Backstab => "Backstab",
             Self::PoisonBlade => "Poison",
             Self::Vanish => "Vanish",
             Self::Shadowstep => "Shadowstep",
+            Self::DeadlyPoison => "Deadly Poison",
+            Self::Rupture => "Rupture",
+            Self::SmokeBomb => "Smoke Bomb",
+            Self::BladeFlurry => "Blade Flurry",
+            // Hunter
             Self::AimedShot => "Aimed Shot",
             Self::MultiShot => "Multi Shot",
             Self::Trap => "Trap",
             Self::Disengage => "Disengage",
+            Self::HuntersMark => "Hunter's Mark",
+            Self::RapidFire => "Rapid Fire",
+            Self::CallPet => "Call Pet",
+            Self::ExplosiveTrap => "Explosive Trap",
+            // Mage
             Self::Fireball => "Fireball",
             Self::Frostbolt => "Frostbolt",
             Self::ArcaneBlast => "Arcane Blast",
             Self::Blink => "Blink",
+            Self::Blizzard => "Blizzard",
+            Self::WaterElemental => "Elemental",
+            Self::Combustion => "Combustion",
+            Self::Meteor => "Meteor",
+            // Generic
+            Self::None => "None",
         }
     }
 }
@@ -447,6 +597,16 @@ pub enum EnemyVariant {
     Elite,
     /// Boss enemy with greatly multiplied stats and special behaviours.
     Boss,
+    /// Magic caster that fires homing projectiles from range.
+    Caster,
+    /// Healer that restores HP to nearby allies.
+    Healer,
+    /// Summoner that spawns minion enemies during combat.
+    Summoner,
+    /// Stealth assassin that teleports behind the player.
+    Assassin,
+    /// Heavy melee brute with wide cleave attacks.
+    Brute,
 }
 
 /// Marks a projectile entity (player or enemy projectiles).
@@ -977,6 +1137,20 @@ impl HitStop {
     pub fn new(duration: f32) -> Self {
         Self { remaining: duration }
     }
+}
+
+/// Generic stat buff applied to entities by abilities and effects.
+///
+/// Carries a `stat_boost` value applied additively to damage
+/// (or other stats depending on the buff's context).
+#[derive(Component, Debug, Clone)]
+pub struct BuffComponent {
+    /// Unique identifier for this buff (e.g. "war_cry", "hunters_mark").
+    pub id: String,
+    /// Remaining duration in seconds.
+    pub remaining: f32,
+    /// Additive stat boost value (applied to damage or other relevant stat).
+    pub stat_boost: f32,
 }
 
 // ============================================================================

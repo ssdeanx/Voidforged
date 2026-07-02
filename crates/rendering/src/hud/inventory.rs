@@ -136,7 +136,7 @@ fn spawn_inventory_slot(parent: &mut ChildBuilder, index: usize, assets: &UiText
             Button,
         ))
         .with_children(|slot| {
-            // Icon placeholder — tinted by rarity (updated by system)
+            // Icon — tinted by rarity when an item is in this slot (updated by system).
             slot.spawn((
                 Node {
                     width: Val::Px(48.0),

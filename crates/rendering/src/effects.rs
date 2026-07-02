@@ -425,6 +425,19 @@ pub fn telegraph_material() -> GlowMaterial {
     }
 }
 
+/// Creates a telegraph material with a configurable green‑shift for windup progress.
+pub struct TelegraphMaterial;
+impl TelegraphMaterial {
+    pub fn new(green_channel: f32) -> GlowMaterial {
+        GlowMaterial {
+            base_color: Vec4::new(0.3, green_channel * 0.3, 0.0, 0.4),
+            glow_color: Vec4::new(1.0, green_channel, 0.0, 1.0),
+            glow_intensity: 2.5,
+            pulse_speed: 5.0,
+        }
+    }
+}
+
 /// Creates a green glow material for XP gems.
 pub fn gem_glow_material() -> GlowMaterial {
     GlowMaterial {

@@ -375,6 +375,12 @@ pub struct AudioVolume(pub f32);
 impl Default for AudioVolume {
     fn default() -> Self { Self(0.5) }
 }
+/// Marker on the volume slider fill bar (width driven by AudioVolume).
+#[derive(Component)]
+pub struct HudVolumeFill;
+/// Marker on the volume percentage text (e.g. "50%").
+#[derive(Component)]
+pub struct HudVolumeText;
 
 // ============================================================================
 // Character Select (unchanged)

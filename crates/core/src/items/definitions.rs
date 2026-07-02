@@ -93,8 +93,21 @@ pub fn starter_item_defs() -> Vec<ItemDef> {
                 StatMod { stat: StatType::AttackSpeedBonus, value: 15.0 },
             ],
             max_stack: 1, icon_id: "icon_iron_dagger", required_level: 1, vendor_price: 40,
-        },
-        ItemDef {
+ },
+ ItemDef {
+ id: "steel_dagger",
+ name: "Steel Dagger",
+ description: "A sharp steel dagger.",
+ category: ItemCategory::Weapon,
+ slot: Some(EquipSlot::MainHand),
+ rarity: ItemRarity::Uncommon,
+ base_stats: vec![
+     StatMod { stat: StatType::DamageBonus, value: 8.0 },
+     StatMod { stat: StatType::AttackSpeedBonus, value: 18.0 },
+ ],
+ max_stack: 1, icon_id: "icon_steel_dagger", required_level: 3, vendor_price: 100,
+ },
+ ItemDef {
             id: "short_bow",
             name: "Short Bow",
             description: "A basic hunting bow.",

@@ -183,6 +183,7 @@ pub fn slot_for_enemy_variant(variant: &ir_core::EnemyVariant) -> ModelSlot {
         EnemyVariant::Charger => "Charger",
         EnemyVariant::Elite => "Elite",
         EnemyVariant::Boss => "Boss",
+        _ => "Grunt",
     };
     ModelSlot::new(ModelCategory::Enemy, name)
 }

@@ -1,4 +1,4 @@
-use crate::{classes, collection, combat, death, enemy, equipment, loot, pickup, player};
+use crate::{classes, collection, combat, death, enemy, enemy_abilities, equipment, loot, pickup, player};
 use bevy::prelude::*;
 use ir_core::*;
 
@@ -34,6 +34,11 @@ impl Plugin for GameplayPlugin {
             .add_systems(OnEnter(AppState::World), (player::apply_equipment,))
             .add_systems(OnEnter(AppState::Dungeon), (player::apply_equipment,))
             .add_systems(OnEnter(AppState::Playing), (player::apply_equipment,))
+            // ── Buff events ──────────────────────────────────────────
+            .add_event::<classes::BuffAppliedEvent>()
+            .add_event::<classes::BuffExpiredEvent>()
+            // ── Class passive buffs (spawn once) ────────────────────
+            .add_systems(Update, classes::apply_class_passive_buffs)
             // ── Player movement ─────────────────────────────────────
             .add_systems(Update, (
                 player::read_player_input,
@@ -48,8 +53,19 @@ impl Plugin for GameplayPlugin {
                 classes::secondary_attack,
                 classes::cast_ability,
                 classes::dash_ability,
+                classes::utility_ability,
+                classes::ultimate_ability,
                 classes::class_resource_regen,
                 classes::tick_ability_cooldowns,
+            ).run_if(has_combat))
+
+            // ── Class auto-attack systems ──────────────────────────
+            .add_systems(Update, (
+                classes::warrior::warrior_auto_attack,
+                classes::paladin::paladin_auto_attack,
+                classes::rogue::rogue_auto_attack,
+                classes::hunter::hunter_auto_attack,
+                classes::mage::mage_auto_attack,
             ).run_if(has_combat))
 
             // ── Class-specific sub-systems ──────────────────────────
@@ -87,6 +103,7 @@ impl Plugin for GameplayPlugin {
                     classes::paladin::apply_holy_light,
                     classes::warrior::tick_shield_block,
                     classes::warrior::cleanup_shield_block,
+                    classes::tick_active_buffs,
                 )
                     .run_if(has_combat),
             )
@@ -99,6 +116,7 @@ impl Plugin for GameplayPlugin {
                     enemy::apply_enemy_velocity,
                     enemy::enemy_melee_attack,
                     enemy::enemy_ranged_attack,
+                    enemy_abilities::enemy_ability_system,
                 )
                     .run_if(has_combat),
             )

@@ -180,13 +180,16 @@ fn update_play_timer(
     play_timer.0 += time.delta_secs();
 }
 
-// ── Wave announcer (placeholder) ────────────────────────────────────────
+// ── Wave announcer ───────────────────────────────────────────────────────
 
 fn wave_announcer(
     mut events: EventReader<WaveStartEvent>,
     _wave_cleared: EventWriter<WaveClearedEvent>,
 ) {
-    for _event in events.read() {
-        // Placeholder — actual wave logic in dungeon/gameplay
+    for event in events.read() {
+        info!(
+            "Wave {} starting — {} enemies incoming",
+            event.wave_number, event.enemy_count
+        );
     }
 }

@@ -1,11 +1,44 @@
-//! Placeholder sprite asset generation — production-quality class-colored sprites.
+//! Placeholder sprite asset generation + sprite texture loading.
 //!
 //! Creates flat quads with distinct shapes, colors, and emissive glows.
 //! Player gets class-tinted materials; enemies get improved silhouettes.
+//! Also loads sprite textures from `assets/textures/sprites/` for world entities.
 
 use bevy::prelude::*;
 use ir_core::*;
 use crate::proc_meshes;
+use std::collections::HashMap;
+
+/// Holds handles to every sprite texture loaded from `assets/textures/sprites/`.
+#[derive(Resource, Debug, Clone, Default)]
+pub struct GameSpriteAssets {
+    pub sprites: HashMap<&'static str, Handle<Image>>,
+}
+
+impl GameSpriteAssets {
+    pub fn get(&self, key: &str) -> Option<Handle<Image>> {
+        self.sprites.get(key).cloned()
+    }
+}
+
+/// Startup system: loads all world sprite textures from `assets/textures/sprites/`.
+pub fn load_game_sprites(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let mut sprites = HashMap::new();
+    let entries: Vec<(&str, &str)> = vec![
+        ("npc_quest", "textures/sprites/npc_quest.png"),
+        ("npc_vendor", "textures/sprites/npc_vendor.png"),
+        ("obj_altar", "textures/sprites/obj_altar.png"),
+        ("obj_loot", "textures/sprites/obj_loot.png"),
+        ("obj_chest", "textures/sprites/obj_chest.png"),
+        ("enemy_grunt", "textures/sprites/enemy_grunt.png"),
+        ("enemy_ranged", "textures/sprites/enemy_ranged.png"),
+        ("enemy_elite", "textures/sprites/enemy_elite.png"),
+    ];
+    for (id, path) in entries {
+        sprites.insert(id, asset_server.load(path));
+    }
+    commands.insert_resource(GameSpriteAssets { sprites });
+}
 
 /// Creates and injects procedural sprite meshes & materials into GameAssets.
 pub fn generate_placeholder_assets(

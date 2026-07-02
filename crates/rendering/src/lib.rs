@@ -22,9 +22,13 @@ pub mod effects;
 /// Module for GLTF model loading pipeline.
 pub mod asset_pipeline;
 pub mod ui_textures;
+/// Module for UI icon asset loading.
+pub mod ui_icons;
 /// Plugin registration — wires all rendering systems into the Bevy app.
 pub mod plugin;
 
 /// The top-level plugin for all rendering systems.
 pub use plugin::RenderingPlugin;
 pub use ui_textures::UiTextureAssets;
+pub use ui_icons::UiIconAssets;
+pub use assets::{GameSpriteAssets, load_game_sprites};

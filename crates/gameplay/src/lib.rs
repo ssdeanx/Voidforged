@@ -21,6 +21,8 @@ pub mod classes;
 pub mod equipment;
 /// Loot tables — weighted drop system connecting enemy kills to item drops.
 pub mod loot;
+/// Enemy special abilities — per-variant attack patterns and cooldowns.
+pub mod enemy_abilities;
 /// Death & respawn — handles player death with context-appropriate consequences.
 pub mod death;
 /// Plugin registration — wires all gameplay systems into the Bevy app.

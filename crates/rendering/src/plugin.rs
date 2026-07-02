@@ -7,6 +7,7 @@ use crate::{
     effects::{self, EffectsLibrary, GlowMaterial},
     hud::{self},
     lighting, spawn,
+    ui_icons,
 };
 use crate::asset_pipeline::{
     animation::tick_animation_clips,
@@ -68,12 +69,14 @@ impl Plugin for RenderingPlugin {
                 lighting::setup_lighting,
             ))
 
-            // Loading — generate placeholder assets + effects library + trail assets + UI textures
+            // Loading — generate placeholder assets + effects library + trail assets + UI textures + sprites
             .add_systems(OnEnter(ir_core::AppState::Loading), (
                 assets::generate_placeholder_assets,
                 effects::build_effects_library,
                 setup_trail_assets,
                 crate::ui_textures::generate_ui_textures,
+                ui_icons::load_ui_icons,
+                assets::load_game_sprites,
             ))
 
             // MainMenu — clean up, show menu
@@ -442,7 +445,7 @@ fn update_telegraph_visuals(
     mut commands: Commands,
     time: Res<Time>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut glow_materials: ResMut<Assets<GlowMaterial>>,
     telegraphs: Query<(Entity, &TelegraphIndicator, &Transform)>,
 ) {
     for (entity, indicator, tf) in telegraphs.iter() {
@@ -452,23 +455,14 @@ fn update_telegraph_visuals(
         }
 
         // Calculate pulse scale and color based on windup progress
-        let pulse = (time.elapsed_secs() * 8.0).sin();
-        let scale = 1.0 + pulse * 0.2; // 0.8–1.2
+        let scale = 1.0 + (time.elapsed_secs() * 8.0).sin() * 0.2; // 0.8–1.2
         let max_duration = 1.2;
         let progress = 1.0 - (indicator.remaining / max_duration).max(0.0);
         let g = (1.0 - progress).max(0.2);
-        let alpha = 0.4;
 
-        // Always recreate mesh+material to reflect color transition (simple approach)
-        // This keeps the code straightforward and avoids complex mutable asset access
+        // Use GlowMaterial with the custom glow.wgsl shader for pulsing emissive effect
         let mesh = meshes.add(Circle::new(1.5));
-        let mat = materials.add(StandardMaterial {
-            base_color: Color::srgba(1.0, g, 0.0, alpha),
-            emissive: LinearRgba::rgb(2.0, g * 2.0, 0.0),
-            perceptual_roughness: 0.3,
-            metallic: 0.1,
-            ..default()
-        });
+        let mat = glow_materials.add(crate::effects::TelegraphMaterial::new(g));
         commands.entity(entity).insert((
             Mesh3d(mesh),
             MeshMaterial3d(mat),
@@ -574,12 +568,14 @@ fn assign_projectile_mesh(
     }
 }
 
-/// Assigns visible mesh/material to enemy entities based on their variant.
-/// Skips enemies that already have a `SceneRoot` from the asset pipeline
+/// Assigns visible mesh/material to enemy entities that spawn without one.
+/// Skips entities that already have a `Mesh3d` component or a `SceneRoot`
 /// (i.e., a GLTF model was loaded for them).
 fn assign_enemy_mesh(
     mut commands: Commands,
     assets: Res<ir_core::GameAssets>,
+    sprites: Res<crate::assets::GameSpriteAssets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     enemies: Query<(Entity, &ir_core::Enemy), (Without<Mesh3d>, With<ir_core::Enemy>, Without<SceneRoot>)>,
 ) {
     for (entity, enemy) in enemies.iter() {
@@ -589,11 +585,42 @@ fn assign_enemy_mesh(
             ir_core::EnemyVariant::Charger => 2,
             ir_core::EnemyVariant::Elite => 3,
             ir_core::EnemyVariant::Boss => 4,
+            _ => 0,
         };
         let mesh = assets.enemy_meshes.get(idx).cloned()
             .unwrap_or_else(|| assets.enemy_meshes[0].clone());
-        let mat = assets.enemy_materials.get(idx).cloned()
-            .unwrap_or_else(|| assets.enemy_materials[0].clone());
+
+        // Try to use a sprite texture; fall back to colored material
+        let sprite_key = match enemy.variant {
+            ir_core::EnemyVariant::Grunt => "enemy_grunt",
+            ir_core::EnemyVariant::Ranged => "enemy_ranged",
+            ir_core::EnemyVariant::Charger => "enemy_grunt",
+            ir_core::EnemyVariant::Elite => "enemy_elite",
+            ir_core::EnemyVariant::Boss => "enemy_elite",
+            _ => "enemy_grunt",
+        };
+        let mat = if let Some(tex_handle) = sprites.get(sprite_key) {
+            // Create a material with the sprite texture applied
+            let base_mat = assets
+                .enemy_materials
+                .get(idx)
+                .cloned()
+                .unwrap_or_else(|| assets.enemy_materials[0].clone());
+            let base_data = materials.get(&base_mat).cloned();
+            if let Some(base) = base_data {
+                materials.add(StandardMaterial {
+                    base_color_texture: Some(tex_handle),
+                    alpha_mode: AlphaMode::Blend,
+                    ..base
+                })
+            } else {
+                base_mat
+            }
+        } else {
+            assets.enemy_materials.get(idx).cloned()
+                .unwrap_or_else(|| assets.enemy_materials[0].clone())
+        };
+
         commands.entity(entity).insert((
             Mesh3d(mesh),
             MeshMaterial3d(mat),

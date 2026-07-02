@@ -4,6 +4,7 @@ use ir_world::map::WorldTile;
 use ir_dungeon::rooms::DungeonWall;
 
 /// Reads keyboard and mouse input into the PlayerInput resource.
+/// Supports Dvorak-position-independent layout (WASD + arrows).
 pub fn read_player_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mouse: Res<ButtonInput<MouseButton>>,
@@ -29,18 +30,23 @@ pub fn read_player_input(
     input.dodge = keyboard.just_pressed(KeyCode::ShiftLeft)
         || keyboard.just_pressed(KeyCode::ShiftRight);
     input.pause = keyboard.just_pressed(KeyCode::Escape);
+    input.interact = keyboard.just_pressed(KeyCode::KeyF);
 }
 
 /// Applies Equipment bonuses to CombatStats when a new run starts.
 /// Starts from class base stats (already set by spawn), then adds equipment on top.
+/// Also inserts ClassResource + Stamina if the player entity is missing them.
 pub fn apply_equipment(
+    mut commands: Commands,
     item_db: Res<ir_core::ItemDatabase>,
-    mut player_query: Query<(&Equipment, &mut CombatStats), With<Player>>,
+    player_query: Query<(Entity, &PlayerClass), Added<Player>>,
+    mut equip_query: Query<(&Equipment, &mut CombatStats), With<Player>>,
 ) {
-    let Ok((equip, mut stats)) = player_query.get_single_mut() else {
-        return;
-    };
-    // Add equipment stats on top of class base stats (no zeroing)
+    let Ok((entity, class)) = player_query.get_single() else { return };
+    // Ensure ClassResource and Stamina are inserted on fresh spawn
+    commands.entity(entity).insert(class.0.default_resource());
+    commands.entity(entity).insert(Stamina::default());
+    let Ok((equip, mut stats)) = equip_query.get_single_mut() else { return };
     crate::equipment::recalc_equipment_stats(&item_db, equip, &mut *stats);
 }
 

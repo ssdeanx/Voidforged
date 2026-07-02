@@ -28,19 +28,21 @@ pub mod hitbox;
 pub mod db;
 pub mod tween;
 pub mod plugin;
+pub mod specs;
 
 pub use components::{
-    Ability, AbilityCooldowns, AbilityKind, AttackCooldown, CharacterClass, ClassAbilityId,
+    Ability, AbilityCooldowns, AbilityKind, AbilitySlot, AttackCooldown, CharacterClass, ClassAbilityId,
     ClassResource, CombatStats, DashCooldown, DashTrail, DashTrailTimer, Enemy, EnemyProjectileMarker,
     EnemyVariant, ExperienceGem, ForcedMovement, Frozen, Health, HitFlash, HitStop, HitStun,
     Knockback, Lifetime, MagicProjectile, Pickup, PickupKind, Player, PlayerClass, PlayerName,
     Position, Projectile, ProjectileOwner, RenderInfo, RespawnTimer, Room, RoomEntity, Stamina,
-    Stun, Team, TelegraphIndicator, TrailSegment, Velocity, Weapon, WeaponKind, DeathAnimation,
+    Stun, Team, TelegraphIndicator, TrailSegment, Velocity, Weapon, WeaponKind, BuffComponent, DeathAnimation,
 };
 pub use events::*;
 pub use hitbox::*;
 pub use items::*;
 pub use tween::*;
+pub use specs::*;
 pub use bundles::*;
 pub use plugin::CorePlugin;
 pub use resources::{

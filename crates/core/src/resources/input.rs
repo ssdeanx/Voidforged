@@ -19,6 +19,10 @@ pub struct PlayerInput {
     pub dodge: bool,
     /// Cast / special ability triggered (Q or equivalent).
     pub cast: bool,
+    /// Utility ability triggered (F or equivalent, slot 5).
+    pub utility: bool,
+    /// Ultimate ability triggered (R or equivalent, slot 6).
+    pub ultimate: bool,
     /// Interact with objects or NPCs (E or equivalent).
     pub interact: bool,
     /// Toggle pause menu (Escape or equivalent).
