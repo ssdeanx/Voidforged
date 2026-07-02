@@ -128,6 +128,7 @@ pub fn apply_poison_damage(
                 amount: poison.damage,
                 is_critical: false,
                 damage_type: DamageType::True,
+                hit_position: None,
             });
         }
         if poison.remaining <= 0.0 {

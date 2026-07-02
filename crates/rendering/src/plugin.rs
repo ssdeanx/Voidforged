@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::pbr::MaterialPlugin;
 use bevy_hanabi::HanabiPlugin;
-use ir_core::{Lifetime, SpawnImpactEvent, SpawnDeathEffectEvent, CameraTransform, HitFlash, Projectile, TrailSegment};
+use ir_core::{Lifetime, SpawnImpactEvent, SpawnDeathEffectEvent, CameraTransform, HitFlash, Projectile, TrailSegment, HitDirectionEvent, TelegraphIndicator};
 use crate::{
     assets, audio, camera,
     effects::{self, EffectsLibrary, GlowMaterial},
@@ -29,6 +29,19 @@ pub struct FlashMaterial {
 pub struct TrailAssets {
     pub mesh: Handle<Mesh>,
     pub material: Handle<StandardMaterial>,
+}
+
+/// Marker for a hit direction indicator UI overlay.
+#[derive(Component)]
+pub struct HitDirectionOverlay {
+    pub timer: f32,
+}
+
+/// Telegraph visual state — assigned when a visual is first created.
+#[derive(Component)]
+pub struct TelegraphVisual {
+    /// Remaining lifetime synced from TelegraphIndicator.
+    pub remaining: f32,
 }
 
 pub struct RenderingPlugin;
@@ -230,11 +243,15 @@ impl Plugin for RenderingPlugin {
                 rotate_billboards.run_if(in_state(ir_core::AppState::Dungeon)),
                 spawn_impact_effect.run_if(in_state(ir_core::AppState::Dungeon)),
                 spawn_death_effect.run_if(in_state(ir_core::AppState::Dungeon)),
+            ))
+            .add_systems(Update, (
                 spawn_projectile_trail.run_if(in_state(ir_core::AppState::Dungeon)),
                 apply_hit_flash_visual.run_if(in_state(ir_core::AppState::Dungeon)),
                 restore_hit_flash_visual.run_if(in_state(ir_core::AppState::Dungeon)),
+                update_telegraph_visuals.run_if(in_state(ir_core::AppState::Dungeon)),
+                spawn_hit_direction_indicator.run_if(in_state(ir_core::AppState::Dungeon)),
+                update_hit_direction_indicators.run_if(in_state(ir_core::AppState::Dungeon)),
                 cleanup_lifetime.run_if(in_state(ir_core::AppState::Dungeon)),
-
             ))
 
             // Playing — spawns player and HUD (used after GameOver→restart)
@@ -416,6 +433,128 @@ fn cleanup_lifetime(
         if lifetime.remaining <= 0.0 {
             commands.entity(entity).despawn();
         }
+    }
+}
+
+/// Renders telegraph indicators as pulsing glowing rings on the ground.
+/// Scale oscillates via Tween::pulse_scale, color transitions yellow→red over windup.
+fn update_telegraph_visuals(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    telegraphs: Query<(Entity, &TelegraphIndicator, &Transform)>,
+) {
+    for (entity, indicator, tf) in telegraphs.iter() {
+        // Tick indicator lifetime — despawn when expired (no visual needed after)
+        if indicator.remaining <= 0.0 {
+            continue;
+        }
+
+        // Calculate pulse scale and color based on windup progress
+        let pulse = (time.elapsed_secs() * 8.0).sin();
+        let scale = 1.0 + pulse * 0.2; // 0.8–1.2
+        let max_duration = 1.2;
+        let progress = 1.0 - (indicator.remaining / max_duration).max(0.0);
+        let g = (1.0 - progress).max(0.2);
+        let alpha = 0.4;
+
+        // Always recreate mesh+material to reflect color transition (simple approach)
+        // This keeps the code straightforward and avoids complex mutable asset access
+        let mesh = meshes.add(Circle::new(1.5));
+        let mat = materials.add(StandardMaterial {
+            base_color: Color::srgba(1.0, g, 0.0, alpha),
+            emissive: LinearRgba::rgb(2.0, g * 2.0, 0.0),
+            perceptual_roughness: 0.3,
+            metallic: 0.1,
+            ..default()
+        });
+        commands.entity(entity).insert((
+            Mesh3d(mesh),
+            MeshMaterial3d(mat),
+            BillboardSprite,
+            // Apply pulsing scale
+            Transform::from_translation(tf.translation).with_scale(Vec3::splat(scale)),
+        ));
+    }
+}
+fn spawn_hit_direction_indicator(
+    mut commands: Commands,
+    mut events: EventReader<HitDirectionEvent>,
+) {
+    for event in events.read() {
+        // Determine which screen edge to flash based on direction
+        let direction = event.direction.normalize_or_zero();
+        // Map world direction to screen-relative position
+        // In isometric view, world X maps to screen-right, world Z maps to screen-down-ish
+        // Simple approach: use the direction to position the flash on the correct screen edge
+        let (left, right, top, bottom) = (0.0, 1.0, 0.0, 1.0);
+        let (_pos_x, _pos_y) = if direction.x.abs() > direction.z.abs() {
+            // Left/right
+            if direction.x > 0.0 { (right, 0.5) } else { (left, 0.5) }
+        } else {
+            // Top/bottom
+            if direction.z > 0.0 { (0.5, bottom) } else { (0.5, top) }
+        };
+
+        // Spawn a fullscreen overlay with a directional flash
+        commands
+            .spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
+                HitDirectionOverlay { timer: 0.3 },
+            ))
+            .with_children(|parent| {
+                // Red flash at the screen edge from the damage direction
+                let is_horizontal = direction.x.abs() > direction.z.abs();
+                let flash_size = if is_horizontal {
+                    (Val::Percent(30.0), Val::Percent(100.0))
+                } else {
+                    (Val::Percent(100.0), Val::Percent(30.0))
+                };
+                let (x_pos, y_pos) = if is_horizontal {
+                    if direction.x > 0.0 { (Val::Percent(70.0), Val::Percent(0.0)) }
+                    else { (Val::Percent(0.0), Val::Percent(0.0)) }
+                } else {
+                    if direction.z > 0.0 { (Val::Percent(0.0), Val::Percent(70.0)) }
+                    else { (Val::Percent(0.0), Val::Percent(0.0)) }
+                };
+                parent.spawn((
+                    Node {
+                        width: flash_size.0,
+                        height: flash_size.1,
+                        position_type: PositionType::Absolute,
+                        left: x_pos,
+                        top: y_pos,
+                        ..default()
+                    },
+                    BackgroundColor(Color::srgba(1.0, 0.0, 0.0, 0.6)),
+                ));
+            });
+    }
+}
+
+/// Updates hit direction indicators — fades and despawns.
+fn update_hit_direction_indicators(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut HitDirectionOverlay, &mut BackgroundColor)>,
+) {
+    let dt = time.delta_secs();
+    for (entity, mut overlay, mut color) in query.iter_mut() {
+        overlay.timer -= dt;
+        if overlay.timer <= 0.0 {
+            commands.entity(entity).despawn_recursive();
+            continue;
+        }
+        // Fade alpha over duration
+        let alpha = (overlay.timer / 0.3).max(0.0) * 0.6;
+        let c = color.0.to_srgba();
+        color.0 = Color::srgba(c.red, c.green, c.blue, alpha);
     }
 }
 

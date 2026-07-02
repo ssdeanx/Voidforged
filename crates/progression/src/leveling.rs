@@ -54,6 +54,7 @@ pub fn apply_level_up(
 
 #[cfg(test)]
 mod tests {
+    use ir_core::Player;
 
     #[test]
     fn test_xp_to_next_formula() {

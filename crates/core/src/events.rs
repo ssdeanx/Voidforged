@@ -24,6 +24,8 @@ pub struct DamageEvent {
     pub is_critical: bool,
     /// Physical, Magic, or True damage type.
     pub damage_type: DamageType,
+    /// World-space position where the hit landed (for spawning effects).
+    pub hit_position: Option<Vec3>,
 }
 
 /// Categorisation of damage for resistances and VFX.
@@ -160,6 +162,16 @@ pub struct SpawnImpactEvent {
 pub struct SpawnDeathEffectEvent {
     pub position: Vec3,
     pub enemy_variant: EnemyVariant,
+}
+
+/// Fired when the player takes damage to show a screen-edge direction indicator.
+///
+/// The rendering system displays a brief red flash on the screen edge
+/// from the direction the damage originated.
+#[derive(Event, Debug, Clone)]
+pub struct HitDirectionEvent {
+    /// Normalized world-space direction from damage source to player.
+    pub direction: Vec3,
 }
 
 // ============================================================================

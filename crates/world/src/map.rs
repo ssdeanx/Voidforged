@@ -100,6 +100,7 @@ pub fn generate_world(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    game_assets: Res<GameAssets>,
 ) {
     let tile_mesh = meshes.add(Cuboid::new(1.9, 0.05, 1.9));
     let entrance_icon = meshes.add(Cuboid::new(0.6, 0.3, 0.6));
@@ -133,7 +134,7 @@ pub fn generate_world(
         }
 
         // ── Zone-specific environment decorations ─────────────────────
-        spawn_zone_decorations(&mut commands, &mut meshes, &mut materials, &zone, base_x, base_z);
+        spawn_zone_decorations(&mut commands, &game_assets, &mut materials, &zone, base_x, base_z);
 
         // ── Ambient ground variation patches ──────────────────────────
         spawn_ground_patches(&mut commands, &mut meshes, &mut materials, &zone, base_x, base_z);
@@ -163,10 +164,29 @@ pub fn generate_world(
     }
 }
 
-/// Spawns zone-specific environment decorations with mesh and material handles.
+/// Resolve a mesh tag string to the actual `Handle<Mesh>` from GameAssets.
+fn mesh_for_tag(assets: &GameAssets, tag: &str) -> Handle<Mesh> {
+    match tag {
+        "bush" => assets.bush_mesh.clone(),
+        "tree" => assets.tree_mesh.clone(),
+        "rock" => assets.rock_mesh.clone(),
+        "grass_blade" => assets.grass_blade_mesh.clone(),
+        "flower" => assets.flower_mesh.clone(),
+        "cactus" => assets.cactus_mesh.clone(),
+        "mushroom" => assets.mushroom_mesh.clone(),
+        "crystal" => assets.crystal_mesh.clone(),
+        "pillar" => assets.pillar_mesh.clone(),
+        _ => {
+            warn!("Unknown mesh tag '{}', falling back to rock mesh", tag);
+            assets.rock_mesh.clone()
+        }
+    }
+}
+
+/// Spawns zone-specific environment decorations with procedural mesh and material handles.
 pub fn spawn_zone_decorations(
     commands: &mut Commands,
-    meshes: &mut ResMut<Assets<Mesh>>,
+    game_assets: &GameAssets,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     zone: &ZoneDef,
     base_x: f32,
@@ -185,9 +205,9 @@ pub fn spawn_zone_decorations(
         let tz = rng.gen_range(2..zone.tile_h - 2);
         let idx = rng.gen_range(0..defs.len());
         let decor = &defs[idx];
-        let mesh = meshes.add(decor.shape);
+        let mesh = mesh_for_tag(game_assets, decor.mesh_tag);
         let mat = materials.add(decor.color);
-        let y_offset = decor.shape.half_size.y;
+        let y_offset = 0.2; // approximate vertical offset for decor objects
         let wx = base_x + tx as f32 * 2.0 + rng.gen_range(-0.6..0.6);
         let wz = base_z + tz as f32 * 2.0 + rng.gen_range(-0.6..0.6);
         commands.spawn((

@@ -5,6 +5,7 @@
 
 use bevy::prelude::*;
 use ir_core::*;
+use crate::proc_meshes;
 
 /// Creates and injects procedural sprite meshes & materials into GameAssets.
 pub fn generate_placeholder_assets(
@@ -165,6 +166,17 @@ pub fn generate_placeholder_assets(
     let tile_material = materials.add(Color::srgb(0.2, 0.2, 0.23));
     let tile_material_alt = materials.add(Color::srgb(0.18, 0.18, 0.21));
 
+    // ── Procedural environment meshes ────────────────────────────────
+    let bush_mesh = meshes.add(proc_meshes::make_bush(0.6));
+    let tree_mesh = meshes.add(proc_meshes::make_tree(0.6, 0.4));
+    let rock_mesh = meshes.add(proc_meshes::make_rock(0.4, 0));
+    let grass_blade_mesh = meshes.add(proc_meshes::make_grass_blade(0.35));
+    let flower_mesh = meshes.add(proc_meshes::make_flower(0.08));
+    let cactus_mesh = meshes.add(proc_meshes::make_cactus(0.7));
+    let mushroom_mesh = meshes.add(proc_meshes::make_mushroom(0.15));
+    let crystal_mesh = meshes.add(proc_meshes::make_crystal(0.5));
+    let pillar_mesh = meshes.add(proc_meshes::make_pillar(0.6, 0.15));
+
     commands.insert_resource(GameAssets {
         player_mesh,
         player_material,
@@ -188,6 +200,15 @@ pub fn generate_placeholder_assets(
         wall_material: materials.add(Color::srgb(0.3, 0.15, 0.15)),
         shadow_mesh,
         shadow_material,
-        environment_meshes: vec![],
+        // Procedural environment meshes
+        bush_mesh,
+        tree_mesh,
+        rock_mesh,
+        grass_blade_mesh,
+        flower_mesh,
+        cactus_mesh,
+        mushroom_mesh,
+        crystal_mesh,
+        pillar_mesh,
     });
 }

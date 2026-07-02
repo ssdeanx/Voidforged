@@ -324,15 +324,15 @@ pub fn update_gold_text(
 }
 
 pub fn update_dash_text(
-    player_query: Query<&DashCooldown, With<Player>>,
+    player_query: Query<(&DashCooldown, &AbilityCooldowns), With<Player>>,
     mut text_query: Query<&mut Text, With<HudDashText>>,
 ) {
-    let Ok(dash) = player_query.get_single() else { return };
+    let Ok((dash, cd)) = player_query.get_single() else { return };
     for mut text in text_query.iter_mut() {
         text.0 = if dash.active {
             "Dash: dodging".to_string()
-        } else if dash.timer > 0.0 {
-            format!("Dash: {:.1}s", dash.timer)
+        } else if cd.dash > 0.0 {
+            format!("Dash: {:.1}s", cd.dash)
         } else {
             "Dash: ready".to_string()
         };

@@ -111,30 +111,32 @@ pub fn spawn_player(
     };
     let stats = class.base_stats();
     let weapon = class.starting_weapon();
-
-    commands.spawn((
-        Mesh3d(assets.player_mesh.clone()),
-        MeshMaterial3d(assets.player_material.clone()),
-        Transform::from_xyz(0.0, 0.0, 0.0),
-        Player::default(),
-        PlayerClass(class),
-        PlayerName(name),
-        Health {
-            current: class.base_max_hp(),
-            max: class.base_max_hp(),
-            invulnerable_until: time.elapsed_secs_f64() as f32 + 4.0,
-        },
-        stats,
-        weapon,
-        Velocity(Vec3::ZERO),
-        DashCooldown::default(),
-        Team::Player,
-        // Asset pipeline integration
-        slot_for_class(&class),
-        AnimationStateMachine::default(),
-    ))
-    .insert(Equipment::default())
-    .insert(Inventory::new(20));
+    commands
+        .spawn((
+            Mesh3d(assets.player_mesh.clone()),
+            MeshMaterial3d(assets.player_material.clone()),
+            Transform::from_xyz(0.0, 0.0, 0.0),
+            Player::default(),
+            PlayerClass(class),
+            PlayerName(name),
+            Health {
+                current: class.base_max_hp(),
+                max: class.base_max_hp(),
+                invulnerable_until: time.elapsed_secs_f64() as f32 + 4.0,
+            },
+            stats,
+            weapon,
+            Velocity(Vec3::ZERO),
+            DashCooldown::default(),
+            Team::Player,
+            // Asset pipeline integration
+            slot_for_class(&class),
+            AnimationStateMachine::default(),
+        ))
+        .insert(AbilityCooldowns::default())
+        .insert(DashTrailTimer::default())
+        .insert(Equipment::default())
+        .insert(Inventory::new(20));
 }
 
 /// Despawns all RoomEntity-marked entities — used on GameOver and state transitions.

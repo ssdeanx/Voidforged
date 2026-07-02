@@ -9,6 +9,8 @@ pub mod audio;
 pub mod camera;
 /// Module for 3D scene lighting (directional + ambient).
 pub mod lighting;
+/// Module for procedural mesh generation (bushes, trees, rocks, etc.).
+pub mod proc_meshes;
 /// Module for placeholder sprite asset generation.
 pub mod assets;
 /// Module for spawning game world entities and cleanup.

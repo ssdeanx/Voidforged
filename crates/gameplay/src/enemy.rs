@@ -208,6 +208,7 @@ pub fn boss_phase_ai(
                         amount: 15.0 + stats.damage_bonus * 0.5,
                         is_critical: false,
                         damage_type: DamageType::Physical,
+                        hit_position: Some(player_pos + Vec3::Y * 1.0),
                     });
                     cooldown.timer = 2.0;
                 }
@@ -273,12 +274,14 @@ pub fn enemy_melee_attack(
                     _ => 10.0,
                 };
                 let dmg = base_dmg + stats.damage_bonus;
+                let hit_pos = player_pos + Vec3::Y * 1.0;
                 damage_events.send(DamageEvent {
                     target: player_entity,
                     source: enemy_entity,
                     amount: dmg,
                     is_critical: false,
                     damage_type: DamageType::Physical,
+                    hit_position: Some(hit_pos),
                 });
                 // Charger hits apply knockback and stun
                 if enemy.variant == EnemyVariant::Charger {
