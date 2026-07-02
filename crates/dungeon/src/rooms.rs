@@ -57,7 +57,7 @@ const MIN_ROOMS: u32 = 2; // entrance + boss
 // ============================================================================
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum RoomKind {
+pub(crate) enum RoomKind {
     Entrance,
     Combat,
     Miniboss,
@@ -70,7 +70,7 @@ enum RoomKind {
 // ============================================================================
 
 /// A room template defines floor tiles, pillar positions, and interior walls.
-struct RoomLayout {
+pub(crate) struct RoomLayout {
     /// Relative tile positions (tx, tz) within the room's bounding box.
     tiles: Vec<(i32, i32)>,
     /// Bounding box width in tiles.
@@ -182,7 +182,7 @@ fn template_arena() -> RoomLayout {
 }
 
 /// Select a room template weighted by depth and room kind.
-fn pick_template(depth: u32, kind: RoomKind, rng: &mut impl Rng) -> RoomLayout {
+pub(crate) fn pick_template(depth: u32, kind: RoomKind, rng: &mut impl Rng) -> RoomLayout {
     match kind {
         RoomKind::Boss => template_arena(),
         RoomKind::Miniboss => {

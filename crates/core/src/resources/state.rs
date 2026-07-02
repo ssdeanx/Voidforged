@@ -20,6 +20,8 @@ pub enum AppState {
     World,
     /// Inside a dungeon instance.
     Dungeon,
+    /// Inside a raid instance (larger group dungeon).
+    Raid,
     /// Active gameplay (shared by World and Dungeon during play).
     Playing,
     /// Game is paused (menu overlay shown).

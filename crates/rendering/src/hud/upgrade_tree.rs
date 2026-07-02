@@ -2,11 +2,13 @@
 //!
 //! Shows all upgrade cards from `all_upgrade_defs()`, grouped by category.
 //! Players can click a card to purchase that upgrade (spending Dark Essence).
+//! Uses icon textures from UiIconAssets when available.
 
 use bevy::prelude::*;
 use ir_core::*;
 use ir_progression::upgrades::UpgradeCategory;
 use crate::hud::components::*;
+use crate::ui_icons::UiIconAssets;
 
 /// Helper to create a label bundle with the given font size and color.
 fn upgrade_label(s: &str, size: f32, color: Color) -> impl Bundle {
@@ -28,7 +30,7 @@ pub struct PurchaseUpgradeEvent {
 // ── Spawn ───────────────────────────────────────────────────────────────────
 
 /// Spawns the full upgrade tree overlay.
-pub fn spawn_upgrade_tree(mut commands: Commands, meta: Res<MetaProgression>) {
+pub fn spawn_upgrade_tree(mut commands: Commands, meta: Res<MetaProgression>, icons: Res<UiIconAssets>) {
     let defs = ir_progression::upgrades::all_upgrade_defs();
 
     commands
@@ -120,7 +122,7 @@ pub fn spawn_upgrade_tree(mut commands: Commands, meta: Res<MetaProgression>) {
                 ))
                 .with_children(|grid| {
                     for def in cat_defs {
-                        spawn_upgrade_card(grid, def, &meta);
+                        spawn_upgrade_card(grid, def, &meta, &icons);
                     }
                 });
             }
@@ -132,6 +134,7 @@ fn spawn_upgrade_card(
     parent: &mut ChildBuilder,
     def: &ir_progression::upgrades::UpgradeDef,
     meta: &MetaProgression,
+    icons: &UiIconAssets,
 ) {
     let current_tier = meta
         .upgrades
@@ -246,13 +249,17 @@ fn spawn_upgrade_card(
                     ));
                 }
 
-                // Icon placeholder
+                // ── Upgrade icon texture ──────────────────────────
+                let icon_handle = icons.get(def.icon_id)
+                    .unwrap_or_else(|| icons.get("ui_settings")
+                        .unwrap_or_default());
                 card.spawn((
-                    upgrade_label(
-                        &format!("[{}]", def.icon_id),
-                        20.0,
-                        Color::srgb(0.3, 0.3, 0.4),
-                    ),
+                    Node {
+                        width: Val::Px(40.0),
+                        height: Val::Px(28.0),
+                        ..default()
+                    },
+                    ImageNode::new(icon_handle),
                     UpgradeTreeRoot,
                 ));
             });
@@ -303,8 +310,17 @@ fn spawn_upgrade_card(
                     ));
                 }
 
+                // ── Icon texture ────────────────────────────────────
+                let icon_handle = icons.get(def.icon_id)
+                    .unwrap_or_else(|| icons.get("ui_settings")
+                        .unwrap_or_default());
                 card.spawn((
-                    upgrade_label(&format!("[{}]", def.icon_id), 20.0, Color::srgb(0.2, 0.2, 0.3)),
+                    Node {
+                        width: Val::Px(40.0),
+                        height: Val::Px(28.0),
+                        ..default()
+                    },
+                    ImageNode::new(icon_handle),
                     UpgradeTreeRoot,
                 ));
             });
@@ -399,11 +415,12 @@ pub fn toggle_upgrade_tree_from_menu(
     keyboard: Res<ButtonInput<KeyCode>>,
     commands: Commands,
     meta: Res<MetaProgression>,
+    icons: Res<UiIconAssets>,
     tree_query: Query<Entity, With<UpgradeTreeRoot>>,
 ) {
     if keyboard.just_pressed(KeyCode::KeyU) {
         if tree_query.is_empty() {
-            spawn_upgrade_tree(commands, meta);
+            spawn_upgrade_tree(commands, meta, icons);
         } else {
             despawn_upgrade_tree(commands, tree_query);
         }

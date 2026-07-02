@@ -384,13 +384,18 @@ pub fn spawn_zone_enemies(
 
     // Pre-generate meshes per variant for reuse
     let mut variant_meshes = std::collections::HashMap::new();
-    for variant in &[EnemyVariant::Grunt, EnemyVariant::Ranged, EnemyVariant::Charger, EnemyVariant::Elite, EnemyVariant::Boss] {
+    for variant in &[EnemyVariant::Grunt, EnemyVariant::Ranged, EnemyVariant::Charger, EnemyVariant::Elite, EnemyVariant::Boss, EnemyVariant::Caster, EnemyVariant::Healer, EnemyVariant::Summoner, EnemyVariant::Assassin, EnemyVariant::Brute] {
         let mesh = match variant {
             EnemyVariant::Grunt => meshes.add(Cuboid::new(0.5, 0.7, 0.5)),
             EnemyVariant::Ranged => meshes.add(Cuboid::new(0.4, 0.8, 0.4)),
             EnemyVariant::Charger => meshes.add(Cuboid::new(0.6, 0.6, 0.6)),
             EnemyVariant::Elite => meshes.add(Cuboid::new(0.5, 0.85, 0.5)),
             EnemyVariant::Boss => meshes.add(Cuboid::new(1.2, 1.2, 1.2)),
+            EnemyVariant::Caster => meshes.add(Cuboid::new(0.4, 0.9, 0.4)),
+            EnemyVariant::Healer => meshes.add(Cuboid::new(0.5, 0.8, 0.5)),
+            EnemyVariant::Summoner => meshes.add(Cuboid::new(0.5, 0.8, 0.5)),
+            EnemyVariant::Assassin => meshes.add(Cuboid::new(0.3, 0.6, 0.3)),
+            EnemyVariant::Brute => meshes.add(Cuboid::new(0.8, 0.9, 0.8)),
         };
         variant_meshes.insert(variant.clone(), mesh);
     }
@@ -428,6 +433,7 @@ pub fn spawn_zone_enemies(
             EnemyVariant::Charger => 2,
             EnemyVariant::Elite => 3,
             EnemyVariant::Boss => 4,
+            _ => 0,
         };
         let color = colors[color_idx.min(4)];
         let mat = materials.add(color);
@@ -446,6 +452,7 @@ pub fn spawn_zone_enemies(
             EnemyVariant::Charger => 3.5 + tier as f32 * 0.3,
             EnemyVariant::Elite => 3.0 + tier as f32 * 0.25,
             EnemyVariant::Boss => 1.5,
+            _ => 2.5,
         };
 
         let mesh = variant_meshes.get(&selected_variant).cloned()

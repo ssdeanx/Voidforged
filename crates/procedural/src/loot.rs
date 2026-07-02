@@ -24,6 +24,11 @@ pub fn spawn_loot(
         EnemyVariant::Charger => 20,
         EnemyVariant::Elite => 50,
         EnemyVariant::Boss => 200,
+        EnemyVariant::Caster => 18,
+        EnemyVariant::Healer => 25,
+        EnemyVariant::Summoner => 35,
+        EnemyVariant::Assassin => 22,
+        EnemyVariant::Brute => 40,
     };
     let xp_value = (xp_base as f64 * (1.0 + wave_tier as f64 * 0.15)) as u64;
     commands.spawn((
@@ -39,6 +44,7 @@ pub fn spawn_loot(
         EnemyVariant::Charger => 0.15,
         EnemyVariant::Elite => 0.40,
         EnemyVariant::Boss => 1.0,
+        _ => 0.15,
     };
     if rng.gen::<f32>() < health_chance {
         let offset = Vec3::new(rng.gen::<f32>() - 0.5, 0.0, rng.gen::<f32>() - 0.5);

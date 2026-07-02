@@ -88,7 +88,7 @@ pub fn spawn_settings_screen(mut commands: Commands) {
             root.spawn((label("— Audio —", 22.0, Color::srgb(0.7, 0.7, 0.9)), HudSettings));
             root.spawn((Node { height: Val::Px(10.0), ..default() }, HudSettings));
 
-            // Master volume slider (display placeholder)
+            // Master volume slider
             root.spawn((
                 Node {
                     flex_direction: FlexDirection::Row,
@@ -124,10 +124,14 @@ pub fn spawn_settings_screen(mut commands: Commands) {
                             ..default()
                         },
                         BackgroundColor(Color::srgb(0.3, 0.6, 1.0)),
-                        HudSettingsButton,
+                        HudVolumeFill,
                     ));
                 });
-                row.spawn((label("50%", 16.0, Color::srgb(0.7, 0.8, 1.0)), HudSettingsButton));
+                row.spawn((
+                    label("50%", 16.0, Color::srgb(0.7, 0.8, 1.0)),
+                    HudVolumeText,
+                    HudSettingsButton,
+                ));
             });
 
             root.spawn((Node { height: Val::Px(20.0), ..default() }, HudSettings));
@@ -199,8 +203,10 @@ pub fn despawn_settings_screen(mut commands: Commands, settings: Query<Entity, W
 /// Updates the settings screen: reads GameConfig and AudioVolume to set toggle/volume UI.
 pub fn update_settings_screen(
     config: Res<GameConfig>,
-    _volume: Res<AudioVolume>,
+    volume: Res<AudioVolume>,
     mut btn_text_query: Query<&mut Text, (With<HudSettingsButton>, Without<HudSettings>)>,
+    mut slider_fill_query: Query<&mut Node, With<HudVolumeFill>>,
+    mut vol_text_query: Query<&mut Text, With<HudVolumeText>>,
     settings_root_query: Query<Entity, With<HudSettings>>,
 ) {
     if settings_root_query.is_empty() {
@@ -216,8 +222,14 @@ pub fn update_settings_screen(
         }
     }
 
-    // Update volume display text and slider width
-    // The slider fill is a HudSettingsButton child with BackgroundColor
+    // Update volume display: read AudioVolume to set slider fill width and percentage text
+    let vol = volume.0.clamp(0.0, 1.0);
+    for mut node in slider_fill_query.iter_mut() {
+        node.width = Val::Percent(vol * 100.0);
+    }
+    for mut text in vol_text_query.iter_mut() {
+        text.0 = format!("{}%", (vol * 100.0).round() as u32);
+    }
 }
 
 /// Handles clicks on the damage numbers toggle and back button.

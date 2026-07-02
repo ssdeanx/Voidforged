@@ -69,7 +69,10 @@ pub fn update_resource_bar(
     let (resource_pct, current, max) = if let Some(res) = resource_opt {
         (res.fraction(), res.current as u32, res.max as u32)
     } else {
-        (0.8, 80, 100) // placeholder fallback
+        // Safety fallback — should not happen in normal gameplay but derive
+        // from the class's default resource pool if the component is missing.
+        let default_res = class.0.default_resource();
+        (1.0, default_res.current as u32, default_res.max as u32)
     };
 
     let color = resource_bar_color(class.0);
@@ -138,7 +141,6 @@ pub fn update_player_frame_class(
 /// and drives cooldown overlays.
 pub fn update_ability_bar(
     player_query: Query<&PlayerClass, With<Player>>,
-    mut slot_icon_query: Query<(&mut BackgroundColor, &mut HudActionBarIcon)>,
     mut slot_border_query: Query<&mut BorderColor, With<HudActionBarSlot>>,
     mut cooldown_query: Query<(&mut Node, &mut HudCooldownOverlay)>,
     time: Res<Time>,
@@ -158,15 +160,12 @@ pub fn update_ability_bar(
         }
     }
 
-    // Update icon colors and border to class color
-    for (mut bc, _icon) in slot_icon_query.iter_mut() {
-        bc.0 = color;
-    }
+    // Update slot borders to class color
     for mut border in slot_border_query.iter_mut() {
         border.0 = color;
     }
-    // Note: ability names are set at spawn time from class_abilities;
-    // if the player changes class mid-game we'd need to update Text here too.
+    // Note: ability icons and names are set at spawn time from class_abilities;
+    // if the player changes class mid-game we'd need to update those here too.
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

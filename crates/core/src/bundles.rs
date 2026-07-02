@@ -80,6 +80,11 @@ impl EnemyBundle {
             EnemyVariant::Charger => (50.0, 20, 7.0),
             EnemyVariant::Elite => (200.0, 50, 3.0),
             EnemyVariant::Boss => (1000.0, 200, 2.0),
+            EnemyVariant::Caster => (25.0, 18, 2.0),
+            EnemyVariant::Healer => (40.0, 25, 2.5),
+            EnemyVariant::Summoner => (60.0, 35, 2.0),
+            EnemyVariant::Assassin => (35.0, 22, 6.0),
+            EnemyVariant::Brute => (150.0, 40, 2.5),
         };
         let scale = tier as f32 * 1.15;
         Self {

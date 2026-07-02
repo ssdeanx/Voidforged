@@ -191,7 +191,8 @@ fn spawn_equip_slot(parent: &mut ChildBuilder, equip_slot: EquipSlot, size: f32,
                 HudEquipSlot(equip_slot),
                 Button,
             )).with_children(|icon| {
-                // Placeholder icon (tinted by item rarity, or dim empty)
+                // Icon placeholder — tinted by item rarity when equipped, dim when empty.
+                // Upgraded to actual icon textures when asset pipeline is active.
                 icon.spawn((
                     Node {
                         width: Val::Px(size - 12.0),

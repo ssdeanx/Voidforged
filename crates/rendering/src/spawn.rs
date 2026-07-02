@@ -136,7 +136,8 @@ pub fn spawn_player(
         .insert(AbilityCooldowns::default())
         .insert(DashTrailTimer::default())
         .insert(Equipment::default())
-        .insert(Inventory::new(20));
+        .insert(Inventory::new(20))
+        .insert(ChosenSpec::default());
 }
 
 /// Despawns all RoomEntity-marked entities — used on GameOver and state transitions.
