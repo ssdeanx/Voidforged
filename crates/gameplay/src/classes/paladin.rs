@@ -133,6 +133,7 @@ pub fn tick_consecration(
                     amount: field.damage,
                     is_critical: false,
                     damage_type: DamageType::Magic,
+                    hit_position: None,
                 });
             }
         }

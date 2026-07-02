@@ -58,7 +58,10 @@ pub fn projectile_hit(
                     amount: projectile.damage,
                     is_critical: false,
                     damage_type: damage_type.clone(),
+                    hit_position: Some(hit_pos),
                 });
+                // Send damage number immediately for responsiveness; apply_damage
+                // will overwrite with the correct crit value if needed.
                 dmg_num_events.send(DamageNumberEvent {
                     position: hit_pos,
                     amount: projectile.damage as i32,
@@ -118,15 +121,17 @@ pub fn projectile_hit_player(
             .translation
             .distance(player_transform.translation);
         if dist < 0.8 {
+            let hit_pos = player_transform.translation + Vec3::Y * 1.0;
             damage_events.send(DamageEvent {
                 target: player_entity,
                 source: proj_entity,
                 amount: projectile.damage,
                 is_critical: false,
                 damage_type: DamageType::Physical,
+                hit_position: Some(hit_pos),
             });
             dmg_num_events.send(DamageNumberEvent {
-                position: player_transform.translation + Vec3::Y * 1.0,
+                position: hit_pos,
                 amount: projectile.damage as i32,
                 is_crit: false,
                 damage_type: DamageType::Physical,
@@ -159,10 +164,14 @@ pub fn apply_damage(
     mut shake: ResMut<ScreenShake>,
     mut damage_events: EventReader<DamageEvent>,
     mut death_events: EventWriter<DeathEvent>,
+    mut dmg_num_events: EventWriter<DamageNumberEvent>,
+    mut impact_events: EventWriter<SpawnImpactEvent>,
+    mut hit_dir_events: EventWriter<HitDirectionEvent>,
     player_query: Query<(Entity, &CombatStats), With<Player>>,
     enemy_query: Query<&CombatStats, (With<Enemy>, Without<Player>)>,
     mut health_query: Query<&mut Health>,
     shield_query: Query<&DamageReduction>,
+    projectile_query: Query<&Projectile>,
 ) {
     let player_data = player_query.get_single().ok();
     let (player_entity, player_stats) = player_data
@@ -180,6 +189,7 @@ pub fn apply_damage(
         let mut amount = event.amount;
         let source = event.source;
         let is_player_target = Some(target) == player_entity;
+        let hit_pos = event.hit_position;
 
         // ── Dodge check (player only for now) ───────────────────
         if is_player_target && rng.gen::<f32>() < player_stats.dodge_chance {
@@ -222,12 +232,6 @@ pub fn apply_damage(
 
         let raw_dmg = amount.max(1.0);
 
-        // ── Screen shake on player hit (proportional to damage) ─
-        if is_player_target {
-            let trauma_add = (raw_dmg / 50.0).min(1.0);
-            shake.trauma = (shake.trauma + trauma_add).min(1.0);
-        }
-
         // ── Apply damage ────────────────────────────────────────
         let is_dead = health_query
             .get_mut(target)
@@ -247,17 +251,85 @@ pub fn apply_damage(
             }
         }
 
+        // ── Screen shake ────────────────────────────────────────
+        if is_player_target {
+            let trauma_add = if is_crit {
+                0.3
+            } else {
+                (raw_dmg / 50.0).min(1.0)
+            };
+            shake.trauma = (shake.trauma + trauma_add).min(1.0);
+        } else if is_crit {
+            // Screen shake on crit hits to enemies too
+            shake.trauma = (shake.trauma + 0.15).min(1.0);
+        }
+
+        // ── Hit direction indicator (player taking damage) ──────
+        if is_player_target {
+            if let Some(pos) = hit_pos {
+                let dir = (pos - Vec3::Y * 1.0) // back to world pos roughly
+                    .normalize_or_zero();
+                if dir.length_squared() > 0.1 {
+                    hit_dir_events.send(HitDirectionEvent { direction: dir });
+                }
+            }
+        }
+
+        // ── Hit-stop durations ──────────────────────────────────
+        let hit_stop_duration = if is_dead {
+            0.2 // kill freeze-frame
+        } else if is_crit {
+            0.15 // crit pause
+        } else {
+            0.08 // normal hit-stop
+        };
+
+        // ── Hit-stop on TARGET (always) ─────────────────────────
+        commands.entity(target).insert(HitStop::new(hit_stop_duration));
+
+        // ── Hit-stop on SOURCE (player/hitter, for game feel) ───
+        // If source is player entity, or a projectile owned by the player
+        if Some(source) == player_entity {
+            commands.entity(source).insert(HitStop::new(hit_stop_duration));
+        } else if let Ok(proj) = projectile_query.get(source) {
+            if proj.owner == ProjectileOwner::Player {
+                // Freeze the player who fired this projectile
+                if let Some(player_entity) = player_entity {
+                    commands.entity(player_entity).insert(HitStop::new(hit_stop_duration));
+                }
+            }
+        }
+
         // ── Hit-stun (stagger) on damage taken ──────────────────
-        // Brief movement interrupt proportional to damage
         if !is_dead {
             let stun_duration = (raw_dmg / 50.0).min(0.3);
             if stun_duration > 0.05 {
                 commands.entity(target).insert(HitStun::new(stun_duration));
             }
-            // Small hit-stop for game feel
-            commands.entity(target).insert(HitStop::new(stun_duration * 0.3));
-            // Hit-flash for game feel (fixed 0.15s for projectile/non-hitbox damage)
+            // Hit-flash for game feel
             commands.entity(target).insert(HitFlash::new(0.15));
+        }
+
+        // ── Crit visual feedback ────────────────────────────────
+        if is_crit {
+            if let Some(pos) = hit_pos {
+                // Gold/orange impact for crits
+                impact_events.send(SpawnImpactEvent {
+                    position: pos,
+                    color: Some(Vec4::new(1.0, 0.7, 0.0, 1.0)),
+                });
+                // Also send a larger damage number with correct crit value
+                dmg_num_events.send(DamageNumberEvent {
+                    position: pos,
+                    amount: raw_dmg as i32,
+                    is_crit: true,
+                    damage_type: if is_player_target {
+                        DamageType::Physical
+                    } else {
+                        event.damage_type.clone()
+                    },
+                });
+            }
         }
 
         // ── Stun on heavy hits (damage > 30% of max HP estimate) ─
@@ -282,7 +354,8 @@ pub fn apply_damage(
 // Death Events — spawns loot
 // ============================================================================
 
-/// Handles death events — spawns loot, despawns enemies, fires death particle event.
+/// Handles death events — spawns loot, fires death particle event,
+/// and inserts DeathAnimation instead of immediately despawning.
 pub fn handle_death(
     mut commands: Commands,
     mut death_events: EventReader<DeathEvent>,
@@ -305,7 +378,13 @@ pub fn handle_death(
                 &enemy.variant,
                 enemy.tier,
             );
-            commands.entity(event.entity).despawn();
+            // Don't despawn immediately — insert DeathAnimation for scale-down effect
+            // and stop AI by removing movement/attack components
+            let current_scale = transform.scale.x;
+            commands.entity(event.entity).insert((
+                DeathAnimation::new(0.5, current_scale),
+                Stun::new(0.5), // prevent movement during death
+            ));
         }
     }
 }
@@ -388,6 +467,7 @@ pub fn process_hitboxes(
                     amount: hitbox.damage,
                     is_critical: false,
                     damage_type: damage_type.clone(),
+                    hit_position: Some(hit_pos),
                 });
 
                 dmg_num_events.send(DamageNumberEvent {
@@ -470,6 +550,7 @@ pub fn process_enemy_hitboxes(
                 amount: hitbox.damage,
                 is_critical: false,
                 damage_type: hitbox.damage_type.clone(),
+                hit_position: Some(player_tf.translation + Vec3::Y * 1.0),
             });
 
             dmg_num_events.send(DamageNumberEvent {
@@ -606,6 +687,31 @@ pub fn tick_hit_flash(
 /// `true` when the player is currently sprinting (consuming stamina).
 #[derive(Component, Default)]
 pub struct Sprinting(pub bool);
+
+/// Death animation system — scales entities down to zero, then despawns them.
+///
+/// Each frame, entities with `DeathAnimation` are scaled toward zero.
+/// Once `timer` expires, the entity is despawned.
+pub fn death_animation_system(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut DeathAnimation, &mut Transform)>,
+) {
+    let dt = time.delta_secs();
+    for (entity, mut death, mut transform) in query.iter_mut() {
+        death.timer -= dt;
+        // Scale down — easing from initial_scale to 0 over the duration
+        let progress = 1.0 - (death.timer / 0.5).max(0.0); // 0→1 over 0.5s
+        let eased = 1.0 - (1.0 - progress) * (1.0 - progress); // ease-out quad
+        let scale = death.initial_scale * (1.0 - eased);
+        transform.scale = Vec3::splat(scale.max(0.0));
+        // Slight upward float during death
+        transform.translation.y += dt * 0.5 * (1.0 - progress);
+        if death.timer <= 0.0 {
+            commands.entity(entity).despawn();
+        }
+    }
+}
 
 /// Regenerates stamina over time. Regen pauses for `stamina_lockout_timer`
 /// seconds after any stamina spend (wow-style lockout).

@@ -52,6 +52,22 @@ pub struct GameAssets {
     pub shadow_mesh: Handle<Mesh>,
     /// Shadow decal material.
     pub shadow_material: Handle<StandardMaterial>,
-    /// Environment prop meshes (statues, crates, flora).
-    pub environment_meshes: Vec<Handle<Mesh>>,
+    /// Procedural bush mesh (sphere cluster).
+    pub bush_mesh: Handle<Mesh>,
+    /// Procedural tree mesh (cylinder trunk + cone canopy).
+    pub tree_mesh: Handle<Mesh>,
+    /// Procedural rock mesh (displaced sphere).
+    pub rock_mesh: Handle<Mesh>,
+    /// Procedural grass blade mesh (thin tall quad).
+    pub grass_blade_mesh: Handle<Mesh>,
+    /// Procedural flower mesh (sphere on stalk).
+    pub flower_mesh: Handle<Mesh>,
+    /// Procedural cactus mesh (cylinder with arms).
+    pub cactus_mesh: Handle<Mesh>,
+    /// Procedural mushroom mesh (cone on cylinder).
+    pub mushroom_mesh: Handle<Mesh>,
+    /// Procedural crystal mesh (elongated octahedron).
+    pub crystal_mesh: Handle<Mesh>,
+    /// Procedural pillar mesh (fluted cylinder).
+    pub pillar_mesh: Handle<Mesh>,
 }

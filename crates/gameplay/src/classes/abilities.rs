@@ -187,68 +187,165 @@ pub fn cast_ability(
 
 // ── Dash Ability ─────────────────────────────────────────────────────────
 
+/// Helper: class color as Vec4 for particle bursts.
+fn class_color_v4(class: CharacterClass) -> Vec4 {
+    match class {
+        CharacterClass::Warrior => Vec4::new(0.78, 0.61, 0.43, 1.0),
+        CharacterClass::Paladin => Vec4::new(0.96, 0.55, 0.73, 1.0),
+        CharacterClass::Rogue => Vec4::new(1.00, 0.96, 0.41, 1.0),
+        CharacterClass::Hunter => Vec4::new(0.67, 0.83, 0.45, 1.0),
+        CharacterClass::Mage => Vec4::new(0.41, 0.80, 0.94, 1.0),
+    }
+}
+
+/// Spawns a semi-transparent copy of the player mesh as an afterimage trail.
+fn spawn_dash_afterimage(
+    commands: &mut Commands,
+    assets: &GameAssets,
+    materials: &mut Assets<StandardMaterial>,
+    class: &PlayerClass,
+    transform: &Transform,
+) {
+    let class_idx = match class.0 {
+        CharacterClass::Warrior => 0,
+        CharacterClass::Paladin => 1,
+        CharacterClass::Rogue => 2,
+        CharacterClass::Hunter => 3,
+        CharacterClass::Mage => 4,
+    };
+    let player_mat = assets
+        .class_materials
+        .get(class_idx)
+        .cloned()
+        .unwrap_or_else(|| assets.player_material.clone());
+
+    if let Some(base_mat) = materials.get(&player_mat) {
+        let mut trail_mat = base_mat.clone();
+        let srgb = trail_mat.base_color.to_srgba();
+        trail_mat.base_color = Color::srgba(srgb.red, srgb.green, srgb.blue, 0.3);
+        trail_mat.alpha_mode = AlphaMode::Blend;
+
+        commands.spawn((
+            Mesh3d(assets.player_mesh.clone()),
+            MeshMaterial3d(materials.add(trail_mat)),
+            Transform::from_translation(transform.translation),
+            GlobalTransform::default(),
+            Lifetime { remaining: 0.3 },
+            TrailSegment,
+        ));
+    }
+}
+
 /// Handles the player's dash (Shift key) — grants brief invulnerability.
 ///
-/// Applies a burst of velocity in the movement direction (or toward cursor
-/// if no direction is pressed). During the dash the player is invulnerable
-/// for 0.2 seconds. Hunter's dash reverses direction (disengage).
+/// Dodges AWAY from the mouse cursor for combat evasion. Spawns afterimage
+/// trail segments every 50ms during the dash, fires a particle burst and
+/// screen shake on activation, and fires another burst on end.
+/// Cooldown is tracked via [`AbilityCooldowns::dash`].
 pub fn dash_ability(
     mut commands: Commands,
     time: Res<Time>,
     input: Res<PlayerInput>,
     cursor: Res<CursorWorldPos>,
+    assets: Res<GameAssets>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut shake: ResMut<ScreenShake>,
+    mut impact_events: EventWriter<SpawnImpactEvent>,
     mut player_query: Query<(
-        Entity, &Transform, &PlayerClass, &CombatStats,
-        &mut DashCooldown, &mut Health, &mut Velocity, &mut Stamina,
+        Entity,
+        &Transform,
+        &PlayerClass,
+        &CombatStats,
+        &mut DashCooldown,
+        &mut Health,
+        &mut Velocity,
+        &mut Stamina,
+        &mut AbilityCooldowns,
+        &mut DashTrailTimer,
     ), With<Player>>,
 ) {
-    let Ok((_player_entity, transform, class, stats, mut dash, mut health, mut velocity, mut stamina)) = player_query.get_single_mut() else { return; };
-    let cd_reduction = stats.dash_cooldown_reduction;
-    let base_cd = (1.0 - cd_reduction).max(0.2);
-    if dash.timer > 0.0 { dash.timer = (dash.timer - time.delta_secs()).max(0.0); }
+    let Ok((_player_entity, transform, class, stats, mut dash, mut health,
+             mut velocity, mut stamina, mut cooldowns, mut trail_timer)) =
+        player_query.get_single_mut()
+    else {
+        return;
+    };
+
+    // ── Active dash: tick duration, spawn afterimages, check end ──
     if dash.active {
         dash.duration -= time.delta_secs();
+
+        // Invulnerability window (first 0.2 s of dash)
         if dash.duration > (0.25 - 0.2) {
             health.invulnerable_until = time.elapsed_secs() as f32 + 0.2;
         }
+
+        // Afterimage trail: spawn transparent mesh copy every 50 ms
+        trail_timer.0 -= time.delta_secs();
+        if trail_timer.0 <= 0.0 {
+            trail_timer.0 = 0.05;
+            spawn_dash_afterimage(&mut commands, &assets, &mut materials, class, transform);
+        }
+
+        // Dash end
         if dash.duration <= 0.0 {
-            dash.active = false; dash.duration = 0.25;
-            health.invulnerable_until = 0.0; velocity.0 = Vec3::ZERO;
+            dash.active = false;
+            dash.duration = 0.25;
+            health.invulnerable_until = 0.0;
+            velocity.0 = Vec3::ZERO;
+
+            // Particle burst at dash end (smaller)
+            impact_events.send(SpawnImpactEvent {
+                position: transform.translation,
+                color: Some(class_color_v4(class.0)),
+            });
         }
         return;
     }
-    if !input.dodge || dash.timer > 0.0 { return; }
-    // Stamina cost gate: dodge costs 20 stamina
-    if !stamina.has(20.0) { return; }
+
+    // ── Cooldown, input, and stamina checks ──
+    if !input.dodge || cooldowns.dash > 0.0 {
+        return;
+    }
+    if !stamina.has(20.0) {
+        return;
+    }
     stamina.spend(20.0);
 
-    dash.active = true; dash.timer = base_cd; dash.duration = 0.25;
+    // ── Activation ──
+    let cd_reduction = stats.dash_cooldown_reduction;
+    let base_cd = (1.0 - cd_reduction).max(0.2);
+
+    dash.active = true;
+    cooldowns.dash = base_cd;
+    dash.duration = 0.25;
+    trail_timer.0 = 0.0; // first afterimage spawns immediately
     health.invulnerable_until = time.elapsed_secs() as f32 + 0.2;
-    let move_dir = input.direction;
-    let dash_dir = if move_dir.length_squared() > 0.0 {
-        // Dodge in input direction (keyboard-relative, converted to world)
-        Vec3::new(move_dir.x, 0.0, move_dir.y).normalize()
+
+    // ── Cursor-relative dash direction ──
+    // Dodge AWAY from the cursor (evade what you're aiming at).
+    let away = (transform.translation - cursor.0).normalize_or_zero();
+    let dash_dir = if away.length_squared() > 0.1 {
+        away
     } else {
-        // No input direction: dodge AWAY from cursor (dodge backward relative to aim)
-        let away = (transform.translation - cursor.0).normalize_or_zero();
-        if away.length_squared() > 0.1 { away } else { Vec3::new(0.0, 0.0, 1.0) }
+        // Cursor is on or very close to the player; fall back to input direction.
+        let move_dir = input.direction;
+        if move_dir.length_squared() > 0.0 {
+            Vec3::new(move_dir.x, 0.0, move_dir.y).normalize()
+        } else {
+            Vec3::new(0.0, 0.0, 1.0)
+        }
     };
-    // Hunter dodge: always away from cursor (disengage)
-    let final_dir = if class.0 == CharacterClass::Hunter {
-        let away = (transform.translation - cursor.0).normalize_or_zero();
-        if away.length_squared() > 0.1 { away } else { dash_dir }
-    } else {
-        dash_dir
-    };
-    velocity.0 = final_dir * 25.0;
-    for i in 0..3 {
-        let offset = Vec3::new((i as f32 - 1.0) * 0.3, 0.0, 0.0);
-        commands.spawn((
-            DashTrail,
-            Transform::from_translation(transform.translation + offset),
-            Lifetime { remaining: 0.3 },
-        ));
-    }
+    velocity.0 = dash_dir * 25.0;
+
+    // ── Screen shake on dash start ──
+    shake.trauma = (shake.trauma + 0.15).min(1.0);
+
+    // ── Particle burst on dash start ──
+    impact_events.send(SpawnImpactEvent {
+        position: transform.translation,
+        color: Some(class_color_v4(class.0)),
+    });
 }
 
 /// Ticks all AbilityCooldowns on players each frame.

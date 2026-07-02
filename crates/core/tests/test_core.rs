@@ -464,6 +464,7 @@ fn test_event_construction() {
         amount: 15.0,
         is_critical: true,
         damage_type: DamageType::Physical,
+        hit_position: None,
     };
     assert!((dmg.amount - 15.0).abs() < f32::EPSILON);
     assert!(dmg.is_critical);

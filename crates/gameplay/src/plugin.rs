@@ -121,6 +121,7 @@ impl Plugin for GameplayPlugin {
                 combat::tick_hit_stun,
                 combat::tick_hit_stop,
                 combat::tick_hit_flash,
+                combat::death_animation_system,
             ).run_if(has_combat))
 
             // ── Hitbox processing ──────────────────────────────────

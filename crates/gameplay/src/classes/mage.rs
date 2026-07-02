@@ -89,6 +89,7 @@ pub fn cast_arcane_blast(
             amount: dmg,
             is_critical: false,
             damage_type: DamageType::Magic,
+            hit_position: None,
         });
         dmg_num_events.send(DamageNumberEvent {
             position: Vec3::Y,

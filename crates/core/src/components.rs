@@ -38,6 +38,7 @@ pub struct AbilityCooldowns {
     pub primary: f32,
     pub secondary: f32,
     pub cast: f32,
+    pub dash: f32,
 }
 
 impl Default for AbilityCooldowns {
@@ -46,6 +47,7 @@ impl Default for AbilityCooldowns {
             primary: 0.0,
             secondary: 0.0,
             cast: 0.0,
+            dash: 0.0,
         }
     }
 }
@@ -55,6 +57,7 @@ impl AbilityCooldowns {
         self.primary = (self.primary - dt).max(0.0);
         self.secondary = (self.secondary - dt).max(0.0);
         self.cast = (self.cast - dt).max(0.0);
+        self.dash = (self.dash - dt).max(0.0);
     }
 }
 
@@ -848,6 +851,17 @@ impl Stamina {
     pub fn fraction(&self) -> f32 { self.current / self.max }
 }
 
+/// Timer for spawning afterimage trail segments during dash.
+/// Starts a 50ms countdown after each trail spawn.
+#[derive(Component, Debug, Clone)]
+pub struct DashTrailTimer(pub f32);
+
+impl Default for DashTrailTimer {
+    fn default() -> Self {
+        Self(0.0)
+    }
+}
+
 /// Dash cooldown component for the player's dodge roll.
 #[derive(Component, Debug, Clone)]
 pub struct DashCooldown {
@@ -1013,6 +1027,25 @@ pub struct HitFlash {
 impl HitFlash {
     pub fn new(duration: f32) -> Self {
         Self { remaining: duration }
+    }
+}
+
+/// Death animation state — scales entity down and despawns.
+///
+/// When attached, the death animation system scales the entity to zero
+/// over `timer` seconds, then despawns it.
+#[derive(Component, Debug, Clone)]
+pub struct DeathAnimation {
+    /// Remaining seconds before despawn.
+    pub timer: f32,
+    /// The entity's scale when DeathAnimation was inserted.
+    pub initial_scale: f32,
+}
+
+impl DeathAnimation {
+    /// Creates a new death animation with the given duration.
+    pub fn new(duration: f32, initial_scale: f32) -> Self {
+        Self { timer: duration, initial_scale }
     }
 }
 

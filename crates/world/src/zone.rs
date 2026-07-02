@@ -194,60 +194,61 @@ impl ZoneId {
         }
     }
 
-    /// Decoration definitions for this zone: (mesh_shape, color, name).
+    /// Decoration definitions for this zone: (mesh_tag, color, name).
+    /// The `mesh_tag` references a procedural mesh stored in `GameAssets`.
     /// Used for zone-specific world objects.
     pub fn decor_definitions(&self) -> Vec<DecorDef> {
         let mut defs = Vec::new();
         match self {
             ZoneId::Grasslands => {
-                defs.push(DecorDef::new("rock", Cuboid::new(0.3, 0.15, 0.3), Color::srgb(0.35, 0.3, 0.25)));
-                defs.push(DecorDef::new("bush", Cuboid::new(0.5, 0.4, 0.5), Color::srgb(0.14, 0.35, 0.1)));
-                defs.push(DecorDef::new("grass_clump", Cuboid::new(0.15, 0.2, 0.15), Color::srgb(0.1, 0.25, 0.07)));
-                defs.push(DecorDef::new("flower_red", Cuboid::new(0.1, 0.08, 0.1), Color::srgb(0.9, 0.1, 0.1)));
-                defs.push(DecorDef::new("flower_yellow", Cuboid::new(0.1, 0.08, 0.1), Color::srgb(0.9, 0.8, 0.1)));
-                defs.push(DecorDef::new("wheat", Cuboid::new(0.08, 0.35, 0.08), Color::srgb(0.6, 0.5, 0.15)));
-                defs.push(DecorDef::new("stump", Cuboid::new(0.25, 0.1, 0.25), Color::srgb(0.3, 0.2, 0.12)));
-                defs.push(DecorDef::new("tall_grass", Cuboid::new(0.04, 0.3, 0.04), Color::srgb(0.12, 0.35, 0.08)));
+                defs.push(DecorDef::new("bush", "bush", Color::srgb(0.14, 0.35, 0.1)));
+                defs.push(DecorDef::new("grass_clump", "grass_blade", Color::srgb(0.1, 0.25, 0.07)));
+                defs.push(DecorDef::new("flower_red", "flower", Color::srgb(0.9, 0.1, 0.1)));
+                defs.push(DecorDef::new("flower_yellow", "flower", Color::srgb(0.9, 0.8, 0.1)));
+                defs.push(DecorDef::new("tree", "tree", Color::srgb(0.12, 0.5, 0.08)));
+                defs.push(DecorDef::new("rock", "rock", Color::srgb(0.35, 0.3, 0.25)));
+                defs.push(DecorDef::new("tall_grass", "grass_blade", Color::srgb(0.12, 0.35, 0.08)));
+                defs.push(DecorDef::new("wheat", "grass_blade", Color::srgb(0.6, 0.5, 0.15)));
             }
             ZoneId::Desert => {
-                defs.push(DecorDef::new("cactus", Cuboid::new(0.2, 0.5, 0.2), Color::srgb(0.2, 0.45, 0.15)));
-                defs.push(DecorDef::new("bone", Cuboid::new(0.08, 0.3, 0.08), Color::srgb(0.8, 0.75, 0.65)));
-                defs.push(DecorDef::new("rock_desert", Cuboid::new(0.35, 0.15, 0.3), Color::srgb(0.5, 0.4, 0.25)));
-                defs.push(DecorDef::new("dried_grass", Cuboid::new(0.1, 0.15, 0.1), Color::srgb(0.5, 0.4, 0.15)));
-                defs.push(DecorDef::new("skull", Cuboid::new(0.15, 0.12, 0.15), Color::srgb(0.75, 0.7, 0.6)));
-                defs.push(DecorDef::new("pillar", Cuboid::new(0.15, 0.5, 0.15), Color::srgb(0.55, 0.45, 0.3)));
-                defs.push(DecorDef::new("stone_ruin", Cuboid::new(0.3, 0.08, 0.2), Color::srgb(0.5, 0.45, 0.35)));
-                defs.push(DecorDef::new("agave", Cuboid::new(0.25, 0.2, 0.25), Color::srgb(0.25, 0.4, 0.15)));
+                defs.push(DecorDef::new("cactus", "cactus", Color::srgb(0.2, 0.45, 0.15)));
+                defs.push(DecorDef::new("rock_desert", "rock", Color::srgb(0.5, 0.4, 0.25)));
+                defs.push(DecorDef::new("crystal", "crystal", Color::srgb(0.6, 0.5, 0.3)));
+                defs.push(DecorDef::new("pillar", "pillar", Color::srgb(0.55, 0.45, 0.3)));
+                defs.push(DecorDef::new("dried_grass", "grass_blade", Color::srgb(0.5, 0.4, 0.15)));
+                defs.push(DecorDef::new("stone_ruin", "rock", Color::srgb(0.5, 0.45, 0.35)));
+                defs.push(DecorDef::new("agave", "bush", Color::srgb(0.25, 0.4, 0.15)));
+                defs.push(DecorDef::new("bone", "grass_blade", Color::srgb(0.8, 0.75, 0.65)));
             }
             ZoneId::Forest => {
-                defs.push(DecorDef::new("mushroom_red", Cuboid::new(0.12, 0.15, 0.12), Color::srgb(0.8, 0.15, 0.15)));
-                defs.push(DecorDef::new("mushroom_brown", Cuboid::new(0.1, 0.1, 0.1), Color::srgb(0.5, 0.3, 0.15)));
-                defs.push(DecorDef::new("log", Cuboid::new(0.4, 0.12, 0.15), Color::srgb(0.3, 0.18, 0.08)));
-                defs.push(DecorDef::new("fern", Cuboid::new(0.2, 0.25, 0.2), Color::srgb(0.1, 0.4, 0.08)));
-                defs.push(DecorDef::new("mossy_rock", Cuboid::new(0.3, 0.12, 0.3), Color::srgb(0.2, 0.35, 0.15)));
-                defs.push(DecorDef::new("fallen_branch", Cuboid::new(0.3, 0.04, 0.04), Color::srgb(0.25, 0.15, 0.08)));
-                defs.push(DecorDef::new("thick_bush", Cuboid::new(0.6, 0.4, 0.6), Color::srgb(0.08, 0.3, 0.06)));
-                defs.push(DecorDef::new("forest_flower", Cuboid::new(0.08, 0.06, 0.08), Color::srgb(0.5, 0.2, 0.7)));
+                defs.push(DecorDef::new("tree", "tree", Color::srgb(0.08, 0.35, 0.06)));
+                defs.push(DecorDef::new("mushroom_red", "mushroom", Color::srgb(0.8, 0.15, 0.15)));
+                defs.push(DecorDef::new("mushroom_brown", "mushroom", Color::srgb(0.5, 0.3, 0.15)));
+                defs.push(DecorDef::new("bush", "bush", Color::srgb(0.1, 0.4, 0.08)));
+                defs.push(DecorDef::new("flower_purple", "flower", Color::srgb(0.5, 0.2, 0.7)));
+                defs.push(DecorDef::new("mossy_rock", "rock", Color::srgb(0.2, 0.35, 0.15)));
+                defs.push(DecorDef::new("fern", "grass_blade", Color::srgb(0.1, 0.4, 0.08)));
+                defs.push(DecorDef::new("thick_bush", "bush", Color::srgb(0.08, 0.3, 0.06)));
             }
             ZoneId::Tundra => {
-                defs.push(DecorDef::new("ice_crystal", Cuboid::new(0.08, 0.4, 0.08), Color::srgb(0.6, 0.7, 1.0)));
-                defs.push(DecorDef::new("snow_mound", Cuboid::new(0.35, 0.15, 0.35), Color::srgb(0.85, 0.85, 0.9)));
-                defs.push(DecorDef::new("frost_rock", Cuboid::new(0.3, 0.12, 0.3), Color::srgb(0.55, 0.55, 0.65)));
-                defs.push(DecorDef::new("frozen_tree", Cuboid::new(0.15, 0.5, 0.15), Color::srgb(0.3, 0.25, 0.25)));
-                defs.push(DecorDef::new("snow_drift", Cuboid::new(0.4, 0.05, 0.3), Color::srgb(0.9, 0.9, 0.92)));
-                defs.push(DecorDef::new("icicle", Cuboid::new(0.04, 0.3, 0.04), Color::srgb(0.7, 0.8, 1.0)));
-                defs.push(DecorDef::new("frost_pillar", Cuboid::new(0.15, 0.45, 0.15), Color::srgb(0.5, 0.6, 0.8)));
-                defs.push(DecorDef::new("permafrost_chunk", Cuboid::new(0.25, 0.08, 0.2), Color::srgb(0.4, 0.4, 0.5)));
+                defs.push(DecorDef::new("ice_crystal", "crystal", Color::srgb(0.6, 0.7, 1.0)));
+                defs.push(DecorDef::new("frost_rock", "rock", Color::srgb(0.55, 0.55, 0.65)));
+                defs.push(DecorDef::new("frozen_tree", "tree", Color::srgb(0.3, 0.25, 0.25)));
+                defs.push(DecorDef::new("snow_mound", "rock", Color::srgb(0.85, 0.85, 0.9)));
+                defs.push(DecorDef::new("frost_pillar", "pillar", Color::srgb(0.5, 0.6, 0.8)));
+                defs.push(DecorDef::new("sparse_grass", "grass_blade", Color::srgb(0.5, 0.5, 0.6)));
+                defs.push(DecorDef::new("icicle", "crystal", Color::srgb(0.7, 0.8, 1.0)));
+                defs.push(DecorDef::new("permafrost_chunk", "rock", Color::srgb(0.4, 0.4, 0.5)));
             }
             ZoneId::Swamp => {
-                defs.push(DecorDef::new("dead_tree", Cuboid::new(0.12, 0.55, 0.12), Color::srgb(0.2, 0.15, 0.08)));
-                defs.push(DecorDef::new("swamp_mushroom", Cuboid::new(0.15, 0.12, 0.15), Color::srgb(0.6, 0.2, 0.4)));
-                defs.push(DecorDef::new("reed", Cuboid::new(0.04, 0.35, 0.04), Color::srgb(0.35, 0.35, 0.12)));
-                defs.push(DecorDef::new("rotten_log", Cuboid::new(0.35, 0.1, 0.12), Color::srgb(0.15, 0.12, 0.05)));
-                defs.push(DecorDef::new("lily_pad", Cuboid::new(0.2, 0.02, 0.2), Color::srgb(0.15, 0.4, 0.12)));
-                defs.push(DecorDef::new("willow_wisp", Cuboid::new(0.06, 0.06, 0.06), Color::srgb(0.5, 0.9, 0.3)));
-                defs.push(DecorDef::new("swamp_rock", Cuboid::new(0.3, 0.1, 0.25), Color::srgb(0.2, 0.22, 0.15)));
-                defs.push(DecorDef::new("bog_flower", Cuboid::new(0.08, 0.1, 0.08), Color::srgb(0.7, 0.3, 0.5)));
+                defs.push(DecorDef::new("dead_tree", "tree", Color::srgb(0.2, 0.15, 0.08)));
+                defs.push(DecorDef::new("swamp_mushroom", "mushroom", Color::srgb(0.6, 0.2, 0.4)));
+                defs.push(DecorDef::new("swamp_rock", "rock", Color::srgb(0.2, 0.22, 0.15)));
+                defs.push(DecorDef::new("bog_flower", "flower", Color::srgb(0.7, 0.3, 0.5)));
+                defs.push(DecorDef::new("twisted_bush", "bush", Color::srgb(0.15, 0.2, 0.06)));
+                defs.push(DecorDef::new("reed", "grass_blade", Color::srgb(0.35, 0.35, 0.12)));
+                defs.push(DecorDef::new("rotten_log", "rock", Color::srgb(0.15, 0.12, 0.05)));
+                defs.push(DecorDef::new("lily_pad", "flower", Color::srgb(0.15, 0.4, 0.12)));
             }
             ZoneId::Void => {}
         }
@@ -259,13 +260,14 @@ impl ZoneId {
 #[derive(Debug, Clone)]
 pub struct DecorDef {
     pub name: &'static str,
-    pub shape: Cuboid,
+    /// Tag referencing a procedural mesh type in GameAssets (e.g. "bush", "tree", "rock").
+    pub mesh_tag: &'static str,
     pub color: Color,
 }
 
 impl DecorDef {
-    pub fn new(name: &'static str, shape: impl Into<Cuboid>, color: Color) -> Self {
-        Self { name, shape: shape.into(), color }
+    pub fn new(name: &'static str, mesh_tag: &'static str, color: Color) -> Self {
+        Self { name, mesh_tag, color }
     }
 }
 

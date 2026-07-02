@@ -31,11 +31,11 @@ pub mod plugin;
 
 pub use components::{
     Ability, AbilityCooldowns, AbilityKind, AttackCooldown, CharacterClass, ClassAbilityId,
-    ClassResource, CombatStats, DashCooldown, DashTrail, Enemy, EnemyProjectileMarker,
+    ClassResource, CombatStats, DashCooldown, DashTrail, DashTrailTimer, Enemy, EnemyProjectileMarker,
     EnemyVariant, ExperienceGem, ForcedMovement, Frozen, Health, HitFlash, HitStop, HitStun,
     Knockback, Lifetime, MagicProjectile, Pickup, PickupKind, Player, PlayerClass, PlayerName,
     Position, Projectile, ProjectileOwner, RenderInfo, RespawnTimer, Room, RoomEntity, Stamina,
-    Stun, Team, TelegraphIndicator, TrailSegment, Velocity, Weapon, WeaponKind,
+    Stun, Team, TelegraphIndicator, TrailSegment, Velocity, Weapon, WeaponKind, DeathAnimation,
 };
 pub use events::*;
 pub use hitbox::*;
